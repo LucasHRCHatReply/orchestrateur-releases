@@ -9,7 +9,7 @@ et rend un résultat qu'on peut ouvrir. Version 2.0.0.
 Dans Claude Code :
 
 ```
-/plugin marketplace add LucasHRCHatReply/orchestrateur
+/plugin marketplace add LucasHRCHatReply/orchestrateur-releases
 /plugin install orchestrateur@orchestration
 ```
 
