@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pboard</title>
+<style>
+:root {
+  --fond: #f4f1ea; --sol: #ebe6db; --carte: #fffdf8; --encre: #23201b; --doux: #6f675b; --trait: #ded7c8;
+  --actif: #1f9e5a; --bloque: #e0700f; --rouge: #d2453b; --fini: #3d7fd9;
+  --ombre: 0 1px 2px rgba(40,30,10,.06), 0 6px 20px rgba(40,30,10,.07);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #17161a; --sol: #1d1c21; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b;
+  --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+} }
+:root[data-theme="dark"] { --fond: #17161a; --sol: #1d1c21; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35); }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--fond); color: var(--encre); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+a { color: inherit; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.barre { position: sticky; top: 0; z-index: 20; display: flex; gap: 12px; align-items: center; padding: 10px 24px; background: color-mix(in srgb, var(--fond) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--trait); flex-wrap: wrap; }
+.marque { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.marque i { width: 22px; height: 22px; border-radius: 6px; background: var(--encre); display: inline-grid; place-items: center; color: var(--fond); font-style: normal; font-size: 13px; }
+.onglets { display: flex; border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; background: var(--carte); }
+.onglets a { padding: 6px 14px; text-decoration: none; }
+.onglets a.actif { background: var(--encre); color: var(--fond); }
+.heure { margin-left: auto; color: var(--doux); font-size: 13px; }
+main { max-width: 1240px; margin: 0 auto; padding: 18px 24px 80px; }
+h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -.02em; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); margin: 22px 0 8px; }
+.sous { color: var(--doux); margin: 0 0 12px; }
+.grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.carte { border: 1px solid var(--trait); background: var(--carte); border-radius: 14px; padding: 12px 14px; box-shadow: var(--ombre); }
+.carte h3 { margin: 0 0 6px; font-size: 16px; }
+.absence { border: 1px dashed var(--trait); border-radius: 12px; padding: 12px 14px; color: var(--doux); }
+.chiffres { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.chiffre { border: 1px solid var(--trait); background: var(--sol); border-radius: 99px; padding: 2px 10px; font-size: 13px; text-decoration: none; }
+.chiffre.rouge { color: var(--rouge); border-color: var(--rouge); } .chiffre.orange { color: var(--bloque); border-color: var(--bloque); }
+.ligne { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--trait); }
+.ligne:last-child { border: 0; }
+.ligne small, .doux { color: var(--doux); }
+.badge { border-radius: 99px; padding: 1px 9px; font-size: 12px; border: 1px solid var(--trait); }
+.badge.maj { color: var(--bloque); border-color: var(--bloque); } .badge.jour { color: var(--actif); border-color: var(--actif); }
+.md h2, .md h3, .md h4, .md h5 { text-transform: none; letter-spacing: 0; color: var(--encre); margin: 14px 0 6px; font-size: 16px; }
+.md ul { padding-left: 20px; } .md ul.taches { list-style: none; padding-left: 4px; }
+.md li.ouv::before { content: "○ "; } .md li.cours::before { content: "◐ "; } .md li.fait::before { content: "● "; color: var(--actif); }
+.md code, .md pre { background: var(--sol); border-radius: 6px; padding: 1px 5px; } .md pre { padding: 8px 10px; overflow: auto; }
+.md .wiki { color: var(--fini); }
+input[type=search] { width: 100%; max-width: 520px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); font: inherit; }
+.retour { display: inline-block; margin-bottom: 8px; color: var(--doux); text-decoration: none; }
+iframe { width: 100%; height: 78vh; border: 1px solid var(--trait); border-radius: 14px; background: var(--carte); }
+.barre-h { height: 8px; border-radius: 4px; background: var(--fini); }
+.vide { padding: 40px; text-align: center; color: var(--doux); }
+@media (max-width: 640px) {
+  .barre, main { padding-left: 16px; padding-right: 16px; }
+  .onglets { width: 100%; overflow-x: auto; } .onglets a { flex: 1; text-align: center; padding: 8px 6px; }
+  .heure { display: none; } h1 { font-size: 22px; } iframe { height: 70vh; }
+}
+</style>
+</head>
+<body>
+<div class="barre">
+  <span class="marque"><i>p</i>pboard</span>
+  <nav class="onglets" id="onglets"></nav>
+  <span class="heure" id="heure"></span>
+</div>
+<main id="main"><div class="vide">Chargement…</div></main>
+<script>
+const TITRES = { aujourdhui: ['Aujourd’hui', 'La page du jour, Sillage, le journal et le bilan d’hier'], projets: ['Projets', 'Une ligne par projet du coffre'],
+  sessions: ['Sessions', 'Le bilan sur 30 jours et le bureau de l’orchestration'], apps: ['Apps', 'Les apps publiées et leur version installée sur ce Mac'], notes: ['Notes', 'Recherche dans tout le coffre'] };
+const main = document.getElementById('main');
+const e = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const api = async (o, q = '') => (await fetch(`/api/pboard/${o}${q}`)).json();
+const absence = (a) => `<div class="absence">${e(a.absence)}</div>`;
+const ouvrir = (url, t) => `<a href="${e(url)}" title="Ouvrir dans Obsidian">${e(t)}</a>`;
+const note = (n) => n.absence ? absence(n) : `<div class="carte md">${n.html}<p class="doux"><a href="${e(n.lien)}" title="Ouvrir dans Obsidian">Ouvrir la note</a></p></div>`;
+const fr = (iso) => iso ? iso.slice(8) + '/' + iso.slice(5, 7) : '—';
+const dur = (m) => m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
+let jeton = 0;
+
+const vues = {
+  async aujourdhui() {
+    const D = await api('aujourdhui'); const s = D.sillage;
+    let h = `<h2>Page du jour</h2>${note(D.page)}<h2>Sillage</h2>`;
+    if (s.absence) h += absence(s); else {
+      h += `<p class="sous">${s.reunions.length} réunions · ${dur(s.totalMinutes)} de travail relevé, généré à ${e(s.genere.slice(11, 16))}</p>
+        <div class="grille"><div class="carte"><h3 title="Réunions détectées ou prévues aujourd’hui">Réunions</h3>${s.reunions.map((r) => `<div class="ligne"><span>${e(r.titre)}</span><small>${e(r.debut)}–${e(r.fin)}</small></div>`).join('') || '<span class="doux">Aucune réunion.</span>'}</div>
+        <div class="carte"><h3 title="Temps relevé par projet, du plus long au plus court">Blocs</h3>${s.projets.map((p) => `<div class="ligne" title="${e(p.blocs.length)} blocs : ${e(p.blocs.map((b) => b.debut + ' ' + (b.sujet || '')).slice(0, 6).join(' · '))}"><span>${e(p.nom)}</span><small>${dur(p.minutes)} · ${p.blocs.length} blocs</small></div>`).join('')}</div>
+        <div class="carte"><h3 title="Notes Glose du jour">Notes</h3>${s.notes.length ? s.notes.map((n) => `<div class="ligne">${e(typeof n === 'string' ? n : n.titre || JSON.stringify(n))}</div>`).join('') : '<span class="doux">Aucune note Glose aujourd’hui dans le fichier Sillage.</span>'}</div></div>`;
+    }
+    h += `<h2>Journal</h2><div class="grille"><div><div class="doux">Matin</div>${note(D.journal.matin)}</div><div><div class="doux">Soir</div>${note(D.journal.soir)}</div></div>`;
+    h += `<h2>Bilan d’hier</h2>` + (D.bilanHier.absence ? absence(D.bilanHier) : `<div class="carte" title="Dernière ligne de bilan.log pour le ${e(D.hier)}">${e(D.bilanHier.ligne)}</div>`);
+    return `<h1>${TITRES.aujourdhui[0]} <small class="doux">${fr(D.jour)}</small></h1>${h}`;
+  },
+  async projets(reste) {
+    if (reste) return vues.projet(reste);
+    const D = await api('projets');
+    return `<h1>Projets</h1><p class="sous">${D.projets.length} projets dans le coffre</p><div class="grille">${D.projets.map((p) => `<a class="carte" style="text-decoration:none" href="#projets/${e(p.slug)}" title="Ouvrir le détail de ${e(p.nom)}">
+      <h3>${e(p.nom)}</h3><div class="doux">${e(p.phase || 'phase non indiquée')} · ${e(p.statut || 'statut non indiqué')}</div>
+      <div class="chiffres"><span class="chiffre" title="Tâches à faire ou en cours">${p.ouvertes} ouvertes</span>${p.bloquees ? `<span class="chiffre orange" title="Tâches marquées #bloque">${p.bloquees} bloquées</span>` : ''}${p.enRetard ? `<span class="chiffre rouge" title="Échéance dépassée">${p.enRetard} en retard</span>` : ''}</div>
+      <small class="doux">${p.dernierPoint ? 'Point du ' + fr(p.dernierPoint.date) : 'Aucun point'}</small></a>`).join('')}</div>`;
+  },
+  async projet(slug) {
+    const D = await api('projet', '?p=' + encodeURIComponent(slug));
+    if (D.absence) return `<a class="retour" href="#projets">‹ Projets</a>${absence(D)}`;
+    return `<a class="retour" href="#projets">‹ Projets</a><h1>${e(D.nom)}</h1><p class="sous">${e(D.phase || 'phase non indiquée')} · ${e(D.statut || 'statut non indiqué')}</p>
+      <h2>État</h2>${note(D.etat)}
+      <h2>${D.taches.length} tâches ouvertes</h2>${D.taches.length ? `<div class="carte">${D.taches.map((t) => `<div class="ligne"><span>${t.etat === 'en-cours' ? '◐' : '○'} ${e(t.texte)}</span><small>${t.bloquee ? 'bloquée ' : ''}${t.echeance ? (t.enRetard ? '<b style="color:var(--rouge)">en retard</b> ' : '') + fr(t.echeance) : ''}</small></div>`).join('')}</div>` : '<div class="absence">Aucune tâche ouverte.</div>'}
+      <h2>Décisions</h2>${D.decisions.absence ? absence(D.decisions) : `<div class="carte">${D.decisions.map((d) => `<div class="ligne">${ouvrir(d.lien, d.titre)}</div>`).join('')}</div>`}
+      <h2>Fiche</h2>${note(D.fiche)}`;
+  },
+  async sessions() {
+    const D = await api('sessions'); let h = `<h1>Sessions</h1>`;
+    if (D.absence) h += absence(D); else {
+      const b = D.bilan; const modeles = Object.entries(b.parModele).filter(([, v]) => v.n).sort((x, y) => y[1].c - x[1].c);
+      const cases = [[b.n, 'sessions', `Sessions Claude Code depuis le ${b.depuis}`], [`${Math.round(b.tot)} $`, 'coût', 'Coût au prix public, tous modèles'], [b.agents, 'agents', 'Agents lancés par ces sessions'],
+        [b.lourdes, 'lourdes', 'Sessions qui ont dépassé le poids de contexte conseillé'], [b.relancees, 'relancées', 'Sessions relancées avec une note de reprise'], [b.refus, 'refus', 'Lancements refusés']];
+      h += `<p class="sous" title="${D.cache ? 'Bilan gardé' : 'Bilan calculé'} le ${e(D.calcule)}">30 derniers jours · ${D.cache ? 'bilan gardé' : 'calculé à l’instant'}${D.perime ? ' (ancien, recalcul impossible)' : ''}</p>
+        <div class="grille">${cases.map(([n, l, t]) => `<div class="carte" title="${e(t)}"><b style="font-size:24px">${e(n)}</b><div class="doux">${l}</div></div>`).join('')}</div>
+        <h2>Par modèle</h2><div class="carte">${modeles.map(([m, v]) => `<div class="ligne" title="${v.n} sessions, ${Math.round(v.c)} $"><span>${e(m)}</span><span>${v.n} · ${Math.round(v.c)} $<div class="barre-h" style="width:${Math.max(4, Math.round(120 * v.c / (b.tot || 1)))}px"></div></span></div>`).join('')}</div>`;
+    }
+    return h + `<h2>Bureau</h2><iframe src="/bureau" title="Le bureau de l’orchestration"></iframe>`;
+  },
+  async apps() {
+    const D = await api('apps'); if (D.absence) return `<h1>Apps</h1>${absence(D)}`;
+    const lib = { maj: 'mise à jour', jour: 'à jour', absente: 'non installée', avance: 'plus récente' };
+    return `<h1>Apps</h1><p class="sous" title="${e(D.aMettreAJour.join(', ') || 'Aucune')}">${D.apps.length} publiées · ${D.installees} installées · ${D.aMettreAJour.length} à mettre à jour</p>
+      <div class="grille">${D.apps.map((a) => `<div class="carte"><h3 style="display:flex;justify-content:space-between"><span>${e(a.nom)}</span><span class="badge ${e(a.etat)}" title="${a.etat === 'maj' ? 'La version publiée est plus récente que celle installée' : 'Version installée comparée à la version publiée'}">${lib[a.etat]}</span></h3>
+        <div class="doux">${e(a.phrase)}</div><div class="ligne"><small>Publiée</small><span>${e(a.publiee)}</span></div><div class="ligne"><small>Installée</small><span>${e(a.installee || '—')}</span></div>
+        <a href="${e(a.page)}" target="_blank" rel="noopener" title="Page de vente de ${e(a.nom)}">Page de vente ↗</a></div>`).join('')}</div>`;
+  },
+  async notes(reste, q = '') {
+    return `<h1>Notes</h1><p class="sous">${TITRES.notes[1]}</p><input type="search" id="q" value="${e(q)}" placeholder="Un mot, un nom de projet…" autofocus><div id="res" style="margin-top:12px"></div>`;
+  },
+};
+async function chercher(q) {
+  const R = document.getElementById('res'); if (!R) return;
+  if (!q.trim()) { R.innerHTML = ''; return; }
+  const D = await api('notes', '?q=' + encodeURIComponent(q));
+  if (document.getElementById('q')?.value !== q) return;
+  R.innerHTML = D.absence ? absence(D) : `<p class="sous" title="Source de la recherche : ${e(D.source)}">${D.resultats.length} résultats</p>` + (D.resultats.length ? `<div class="carte">${D.resultats.map((r) => `<div class="ligne">${ouvrir(r.lien, r.titre)}<small title="${e(r.chemin)}">${e(r.chemin.split('/').slice(-2, -1)[0])}</small></div>`).join('')}</div>` : '<div class="absence">Rien trouvé pour ce mot.</div>');
+}
+
+async function rendre() {
+  const [onglet, ...suite] = (location.hash.slice(1) || 'aujourdhui').split('/'); const o = vues[onglet] ? onglet : 'aujourdhui'; const moi = ++jeton;
+  document.getElementById('onglets').innerHTML = Object.keys(TITRES).map((k) => `<a href="#${k}" class="${k === o ? 'actif' : ''}" title="${e(TITRES[k][1])}">${TITRES[k][0]}</a>`).join('');
+  if (!main.dataset.o || main.dataset.o !== location.hash) main.innerHTML = '<div class="vide">Chargement…</div>';
+  main.dataset.o = location.hash;
+  let h; try { h = await vues[o](suite.join('/')); } catch (x) { h = `<div class="absence">Le serveur local ne répond pas : ${e(x.message)}.</div>`; }
+  if (moi !== jeton) return; main.innerHTML = h;
+  if (o === 'notes') { const q = document.getElementById('q'); let t; q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => chercher(q.value), 250); }); q.focus(); }
+}
+addEventListener('hashchange', rendre); rendre();
+setInterval(() => { document.getElementById('heure').textContent = new Date().toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }); }, 1000);
+setInterval(() => { if (document.visibilityState === 'visible' && !/^#(notes|sessions)/.test(location.hash)) rendre(); }, 60000);
+</script>
+</body>
+</html>

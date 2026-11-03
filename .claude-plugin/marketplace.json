@@ -1,0 +1,13 @@
+{
+  "name": "orchestration",
+  "description": "Le skill d'orchestration de sessions Claude Code, en plugin",
+  "owner": { "name": "orchestrateur" },
+  "plugins": [
+    {
+      "name": "orchestrateur",
+      "source": "./",
+      "description": "Orchestre un chantier : découpe en étapes, lance des sessions avec le modèle et l'effort les plus bas qui suffisent, suit leur poids et rend un résultat qu'on peut ouvrir.",
+      "version": "1.7.0"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+<style>.q{padding:1rem 0}.q h3{margin:0 0 4px}.q p{margin:0 0 12px;font-size:14px;color:var(--text-secondary);line-height:1.5}.q svg{width:100%;height:auto;margin:0 0 12px}.o{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.o button{text-align:left;height:auto;padding:12px;background:var(--surface-2);white-space:normal}.o button b{display:block;font-weight:500}.o button span{display:block;font-size:13px;color:var(--text-secondary);margin-top:4px}.o button.r{border:2px solid var(--border-accent)}.o i{font-style:normal;font-size:12px;background:var(--bg-accent);color:var(--text-accent);padding:2px 8px;border-radius:var(--radius);float:right}</style>
+<div class="q"><h2 class="sr-only">Choix entre deux façons de relancer un traitement interrompu.</h2>
+<h3>Reprendre le traitement ou tout refaire ?</h3>
+<p>Le lot s'est arrêté à la page 312 sur 800, sur une erreur réseau. Les 311 premières pages sont déjà écrites.</p>
+<svg viewBox="0 0 680 120" role="img"><title>Les 311 pages écrites, puis l'arrêt, puis les 488 restantes</title><rect class="c-teal" x="20" y="40" width="250" height="40" rx="4"/><text class="t" x="145" y="65" text-anchor="middle">311 écrites</text><rect class="c-red" x="270" y="40" width="20" height="40" rx="4"/><text class="ts" x="280" y="100" text-anchor="middle">arrêt</text><rect class="c-gray" x="290" y="40" width="370" height="40" rx="4"/><text class="t" x="475" y="65" text-anchor="middle">488 restantes</text></svg>
+<div class="o">
+<button class="r" data-r="Reprendre à la page 312, sans toucher aux pages déjà écrites."><i>recommandé</i><b>Reprendre</b><span>Environ 8 min ; rien n'est réécrit.</span></button>
+<button data-r="Tout refaire depuis la page 1."><b>Tout refaire</b><span>Environ 20 min ; les 311 pages sont réécrites.</span></button>
+</div></div>
+<script>document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>sendPrompt(b.dataset.r))</script>

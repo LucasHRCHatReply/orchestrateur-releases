@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Session Desk</title>
+<style>
+:root {
+  --fond: #f4f1ea; --sol: #ebe6db; --sol-ligne: #e2dccf; --carte: #fffdf8; --encre: #23201b; --doux: #6f675b; --trait: #ded7c8;
+  --bureau: #c9a77c; --bureau-ombre: #a9865c; --ecran: #2c2f36; --peau: #f1c9a5;
+  --haiku: #1f9e83; --sonnet: #e0743a; --opus: #7656d4; --fable: #c99a16; --autre: #8b8578;
+  --actif: #1f9e5a; --bloque: #e0700f; --rouge: #d2453b; --fini: #3d7fd9; --repos: #8b8578;
+  --ombre: 0 1px 2px rgba(40,30,10,.06), 0 6px 20px rgba(40,30,10,.07);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #17161a; --sol: #1d1c21; --sol-ligne: #242329; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b;
+  --bureau: #7d6247; --bureau-ombre: #5e4935; --ecran: #0e0f12; --peau: #d9b08c; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+} }
+:root[data-theme="dark"] { --fond: #17161a; --sol: #1d1c21; --sol-ligne: #242329; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b;
+  --bureau: #7d6247; --bureau-ombre: #5e4935; --ecran: #0e0f12; --peau: #d9b08c; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35); }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--fond); color: var(--encre); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.barre { position: sticky; top: 0; z-index: 20; display: flex; gap: 12px; align-items: center; padding: 10px 24px; background: color-mix(in srgb, var(--fond) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--trait); flex-wrap: wrap; }
+.marque { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.marque i { width: 22px; height: 22px; border-radius: 6px; background: var(--encre); display: inline-grid; place-items: center; color: var(--fond); font-style: normal; font-size: 13px; }
+.env { position: relative; }
+.env > button { border: 1px solid var(--trait); background: var(--carte); border-radius: 10px; padding: 6px 12px; display: flex; gap: 8px; align-items: center; max-width: 46vw; }
+.env > button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.envs { position: absolute; top: 42px; left: 0; width: min(520px, 92vw); max-height: 70vh; overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: 14px; box-shadow: var(--ombre); padding: 8px; display: none; }
+.envs.ouvert { display: block; }
+.envs input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--trait); background: var(--fond); color: var(--encre); margin-bottom: 6px; }
+.envs h4 { margin: 10px 8px 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); }
+.envs a { display: block; padding: 7px 10px; border-radius: 8px; text-decoration: none; color: inherit; }
+.envs a:hover, .envs a.ici { background: var(--sol); }
+.envs a small { display: block; color: var(--doux); }
+.modes { display: flex; border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; background: var(--carte); }
+.modes button { border: 0; background: none; padding: 6px 14px; }
+.modes button.actif { background: var(--encre); color: var(--fond); }
+.ajour { margin-left: auto; color: var(--doux); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.ajour b { width: 8px; height: 8px; border-radius: 50%; background: var(--actif); display: inline-block; }
+.ajour.charge b { animation: pouls 1s infinite; }
+main { max-width: 1240px; margin: 0 auto; padding: 18px 24px 80px; }
+.vide { padding: 40px; text-align: center; color: var(--doux); }
+
+/* ── Tête : lignée, titre, phrase */
+.lignee { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--doux); }
+.lignee button { border: 1px solid var(--trait); background: var(--carte); border-radius: 99px; padding: 1px 9px; font-size: 12px; color: var(--doux); }
+.lignee button.ici { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.lignee span { opacity: .6; }
+h1 { margin: 6px 0 2px; font-size: 28px; letter-spacing: -.02em; line-height: 1.15; }
+.phrase { margin: 0; color: var(--doux); font-size: 15px; max-width: 860px; }
+.phrase.haiku { color: var(--encre); }
+
+/* ── Les quatre tuiles d'état */
+.etats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0 10px; }
+.tuile { border: 1px solid var(--trait); background: var(--carte); border-radius: 14px; padding: 10px 14px; text-align: left; position: relative; overflow: hidden; }
+.tuile::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--c); }
+.tuile b { font-size: 26px; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
+.tuile b i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.tuile.anime b i { animation: pouls 1.2s infinite; }
+.tuile span { font-size: 13px; color: var(--doux); }
+.tuile.choisi { outline: 2px solid var(--c); }
+.tuile.zero { opacity: .55; }
+.annexes { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--doux); margin-bottom: 18px; }
+.annexes button { border: 0; background: none; padding: 0; color: var(--doux); text-decoration: underline dotted; text-underline-offset: 3px; }
+.annexes b { color: var(--encre); }
+
+/* ── À débloquer */
+.bloques { border: 1px solid color-mix(in srgb, var(--bloque) 45%, var(--trait)); background: color-mix(in srgb, var(--bloque) 7%, var(--carte)); border-radius: 16px; padding: 12px 14px; margin-bottom: 18px; }
+.bloques h2 { margin: 0 0 8px; font-size: 14px; color: var(--bloque); }
+.bloque { display: flex; gap: 10px; align-items: center; width: 100%; border: 0; background: none; text-align: left; padding: 6px 4px; border-radius: 10px; }
+.bloque:hover { background: color-mix(in srgb, var(--bloque) 10%, transparent); }
+.bloque svg { width: 46px; flex: none; }
+.bloque div { min-width: 0; }
+.bloque strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bloque small { display: block; color: var(--doux); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Bureau */
+.sol { background: var(--sol); border-radius: 22px; padding: 22px; background-image: linear-gradient(var(--sol-ligne) 1px, transparent 1px), linear-gradient(90deg, var(--sol-ligne) 1px, transparent 1px); background-size: 48px 48px; border: 1px solid var(--trait); }
+.estrade { display: flex; justify-content: center; margin-bottom: 20px; }
+.poles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.pole { background: color-mix(in srgb, var(--carte) 85%, transparent); border: 1px solid var(--trait); border-left: 5px solid var(--c); border-radius: 14px; padding: 10px 12px; box-shadow: var(--ombre); }
+.pole header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+.pole header strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pole header em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--c); white-space: nowrap; }
+.postes { display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-end; }
+.poste { position: relative; border: 0; background: none; padding: 0; width: 78px; text-align: center; border-radius: 10px; }
+.poste.grand { width: 150px; }
+.poste.petit { width: 50px; }
+.poste:hover svg { transform: translateY(-2px); }
+.poste svg { display: block; width: 100%; height: auto; transition: transform .15s; overflow: visible; }
+.poste .nom { font-size: 11px; line-height: 1.2; margin-top: 1px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.poste.grand .nom { font-size: 13px; font-weight: 600; -webkit-line-clamp: 2; }
+.poste.petit .nom, .poste.tete .nom { display: none; }
+.poste .relances { position: absolute; top: 0; left: 2px; font-size: 10px; font-weight: 700; background: var(--encre); color: var(--fond); border-radius: 99px; padding: 0 5px; }
+.poste .gen { position: absolute; top: 0; right: 0; font-size: 9px; color: var(--doux); }
+.tas { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--trait); background: var(--carte); border-radius: 99px; padding: 2px 8px 2px 4px; font-size: 12px; height: 24px; margin: 0 0 14px 4px; }
+.tas i { width: 9px; height: 9px; border-radius: 50%; margin-right: -3px; border: 1.5px solid var(--carte); }
+.tas b { margin-left: 5px; color: var(--fini); }
+details.gen { margin-top: 16px; }
+details.gen summary { cursor: pointer; font-size: 14px; color: var(--doux); padding: 8px 4px; list-style: none; }
+details.gen summary::before { content: "▸ "; }
+details.gen[open] summary::before { content: "▾ "; }
+details.gen summary b { color: var(--encre); }
+.tete-perso { fill: var(--peau); } .bureau-plateau { fill: var(--bureau); } .bureau-pied { fill: var(--bureau-ombre); } .ecran { fill: var(--ecran); }
+.e-actif .ligne { animation: defile 1.2s linear infinite; }
+.e-actif .bras { animation: tape .35s ease-in-out infinite alternate; }
+.e-actif .lueur { fill: var(--actif); opacity: .25; animation: pouls 1.6s infinite; }
+.e-bloque .bulle { animation: flotte 2s ease-in-out infinite; }
+.e-repos .zz { animation: zz 2.4s ease-in-out infinite; }
+.e-repos .perso { transform: translateY(3px); }
+.e-fini .perso { transform: rotate(-4deg); transform-origin: 50% 90%; }
+.e-range .perso { opacity: 0; }
+@keyframes defile { from { transform: translateX(0); } to { transform: translateX(-12px); } }
+@keyframes tape { from { transform: translateY(0); } to { transform: translateY(-1.5px); } }
+@keyframes pouls { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes flotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes zz { 0% { opacity: 0; transform: translate(0, 0); } 50% { opacity: 1; } 100% { opacity: 0; transform: translate(4px, -8px); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ── Liste */
+.section { margin: 0 0 26px; }
+.section h2 { font-size: 17px; margin: 0 0 8px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.table { background: var(--carte); border: 1px solid var(--trait); border-radius: 14px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 600; color: var(--doux); font-size: 12px; padding: 9px 12px; border-bottom: 1px solid var(--trait); white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tr.ligne { cursor: pointer; } tr.ligne:hover { background: var(--sol); }
+tr.sep td { background: var(--sol); font-size: 12px; color: var(--doux); font-weight: 600; padding: 5px 12px; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.titre-cell { max-width: 440px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etat { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; }
+.etat i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.modele { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; font-size: 13px; }
+.modele i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* ── Bulle au survol */
+#bulle { position: fixed; z-index: 50; pointer-events: none; background: var(--encre); color: var(--fond); border-radius: 10px; padding: 8px 11px; font-size: 12.5px; max-width: 320px; box-shadow: var(--ombre); opacity: 0; transition: opacity .1s; }
+#bulle.vu { opacity: 1; }
+#bulle b { display: block; font-size: 13px; margin-bottom: 2px; }
+
+/* ── Panneau « voir plus » */
+.voile { position: fixed; inset: 0; background: rgba(20,15,5,.25); z-index: 30; display: none; }
+.voile.ouvert { display: block; }
+aside { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); background: var(--carte); z-index: 31; transform: translateX(100%); transition: transform .2s ease; box-shadow: var(--ombre); overflow: auto; padding: 22px 24px 40px; border-left: 1px solid var(--trait); }
+aside.ouvert { transform: none; }
+aside .fermer { position: absolute; top: 14px; right: 14px; border: 0; background: var(--sol); border-radius: 99px; width: 30px; height: 30px; }
+aside h2 { margin: 0 34px 6px 0; font-size: 20px; line-height: 1.25; }
+.faits { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; font-size: 14px; margin: 12px 0 16px; }
+.faits dt { color: var(--doux); } .faits dd { margin: 0; font-variant-numeric: tabular-nums; }
+.question { border-left: 4px solid var(--bloque); background: color-mix(in srgb, var(--bloque) 8%, transparent); padding: 8px 12px; border-radius: 8px; margin: 0 0 14px; font-size: 14px; }
+.recit { border: 1px solid var(--trait); border-radius: 14px; padding: 4px 16px; margin-bottom: 16px; }
+.recit h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); margin: 12px 0 4px; }
+.recit p { margin: 0 0 8px; }
+.recit .pied { border-top: 1px solid var(--trait); margin-top: 8px; padding: 8px 0; font-size: 12px; color: var(--doux); display: flex; justify-content: space-between; gap: 8px; }
+.recit .pied button { border: 0; background: none; text-decoration: underline; color: var(--doux); font-size: 12px; padding: 0; }
+.attente { color: var(--doux); padding: 14px 0; display: flex; gap: 8px; align-items: center; }
+.attente b { width: 8px; height: 8px; border-radius: 50%; background: var(--haiku); animation: pouls 1s infinite; }
+.plan { list-style: none; padding: 0; margin: 0 0 14px; font-size: 14px; }
+.plan li { padding: 3px 0 3px 24px; position: relative; }
+.plan li::before { position: absolute; left: 0; content: "○"; color: var(--doux); }
+.plan li.completed::before { content: "✓"; color: var(--fini); }
+.plan li.in_progress::before { content: "●"; color: var(--actif); }
+aside h4 { font-size: 13px; margin: 14px 0 6px; color: var(--doux); }
+aside code { font-size: 12px; background: var(--sol); padding: 1px 5px; border-radius: 5px; word-break: break-all; }
+aside a { color: inherit; }
+
+/* ── Temps : la frise des sessions et de leurs agents */
+.frise { border: 1px solid var(--trait); background: var(--carte); border-radius: 16px; padding: 14px 16px 10px; box-shadow: var(--ombre); }
+.frise .axe { position: relative; height: 20px; margin-left: var(--g); font-size: 11px; color: var(--doux); border-bottom: 1px solid var(--trait); }
+.frise .axe span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.frise .rang { display: grid; grid-template-columns: var(--g) 1fr; align-items: center; min-height: 30px; border-bottom: 1px dashed var(--sol-ligne); cursor: pointer; }
+.frise .rang:hover { background: var(--sol); }
+.frise .rang.gen { min-height: 34px; }
+.frise .nom { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; }
+.frise .nom small { color: var(--doux); margin-right: 4px; }
+.frise .piste { position: relative; height: 30px; }
+.frise .barre-t { position: absolute; top: 6px; height: 12px; border-radius: 6px; background: var(--m); min-width: 4px; box-shadow: inset 0 0 0 2px var(--c); opacity: .92; }
+.frise .rang.gen .barre-t { top: 7px; height: 16px; }
+.frise .barre-t.vif { animation: pouls 1.4s infinite; }
+.frise .agent-t { position: absolute; top: 21px; height: 5px; border-radius: 3px; background: var(--m); min-width: 3px; opacity: .75; }
+.frise .agent-t.vif { opacity: 1; animation: pouls 1.4s infinite; }
+.frise .maintenant { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--actif); }
+.frise .coupe { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--doux); opacity: .5; }
+.frise .legende { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--doux); margin-top: 10px; }
+.frise .legende i { display: inline-block; width: 18px; height: 8px; border-radius: 4px; margin-right: 5px; vertical-align: middle; }
+.annonce { margin: 10px 0; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--actif) 14%, var(--carte)); border: 1px solid var(--actif); font-size: 14px; }
+@media (max-width: 640px) { .frise { --g: 110px !important; padding: 10px; } }
+@media (max-width: 720px) { .etats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .barre { padding: 10px 16px; } main { padding: 14px 16px 60px; } .sol { padding: 12px; } h1 { font-size: 23px; } .ajour { margin-left: 0; } .env > button { max-width: 80vw; } }
+</style>
+</head>
+<body>
+<header class="barre">
+  <div class="marque"><i>◧</i> Session Desk</div>
+  <div class="env"><button id="envBouton" title="Changer d'orchestration : chacune de ce Mac, toutes générations réunies"><span id="envNom">…</span> ▾</button>
+    <div class="envs" id="envs"><input id="envCherche" placeholder="Chercher un projet ou un titre"><div id="envListe"></div></div></div>
+  <div class="modes">
+    <button data-mode="bureau" title="Chacun à son poste : la couleur du pull dit le modèle, l'animation dit l'état">Bureau</button>
+    <button data-mode="liste" title="Toutes les sessions et tous les agents en tableaux">Liste</button>
+    <button data-mode="temps" title="Qui a travaillé quand : une barre par session, un trait par agent">Temps</button>
+  </div>
+  <div class="ajour" id="ajour" title="Relu toutes les 5 s, sans modèle : rien n’est recalculé tant qu’aucun fichier n’a bougé"><b></b><span>…</span></div>
+</header>
+<main id="main"><div class="vide">Lecture des transcriptions…</div></main>
+<div id="bulle"></div>
+<div class="voile" id="voile"></div>
+<aside id="panneau" aria-hidden="true"></aside>
+<script>
+const P = new URLSearchParams(location.search);
+const lu = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+let etat = { s: P.get('s') || '', c: P.get('c') || '', moi: P.get('moi') || '', d: P.get('d') || '', mode: P.get('mode') || lu('sd-mode') || 'bureau', groupe: '', ouverts: new Set() };
+let D = null, ENVS = [], phraseHaiku = {}, annonce = '', vuGen = {};
+
+// Quatre familles d'état, la seule chose à lire d'un coup d'œil ; le détail de l'état va au survol.
+const GROUPES = {
+  actif: { l: 'En cours', c: 'var(--actif)', x: 'Travaillent à cet instant : processus vivant et activité de moins de 3 min (5 pour un agent).' },
+  bloque: { l: 'Bloquées', c: 'var(--bloque)', x: 'Attendent une décision, ou se sont arrêtées en plein tour.' },
+  fini: { l: 'Finies', c: 'var(--fini)', x: 'Ont rendu leur travail (finies, à relire ou rangées).' },
+  repos: { l: 'Au repos', c: 'var(--repos)', x: 'Sans statut final et sans activité récente, ou en suspens depuis plus de 2 jours.' },
+};
+const ETATS = {
+  'travaille': { l: 'Travaille', g: 'actif', x: 'Son processus tourne et il a écrit il y a moins de 3 min.' },
+  'attend': { l: 'Attend', g: 'bloque', x: 'Attend une réponse ou une décision.' },
+  'interrompue': { l: 'Interrompue', g: 'bloque', x: 'Son dernier tour ne s’est pas terminé et rien ne tourne plus.' },
+  'à relire': { l: 'À relire', g: 'fini', x: 'A fini et demande qu’on relise son travail.' },
+  'finie': { l: 'Finie', g: 'fini', x: 'A terminé et rendu son résultat.' },
+  'rangée': { l: 'Rangée', g: 'fini', x: 'Archivée dans l’app : processus fermé, transcription lisible.' },
+  'au repos': { l: 'Au repos', g: 'repos', x: 'Inactive depuis moins de 30 min, sans statut final.' },
+  'dort': { l: 'Endormie', g: 'repos', x: 'Inactive depuis plus de 30 min, sans statut final.' },
+  'en suspens': { l: 'En suspens', g: 'repos', x: 'Attendait une décision, ou s’est arrêtée, il y a plus de 2 jours, processus fermé : à reprendre ou à ranger.' },
+};
+const ORDRE = { actif: 0, bloque: 1, repos: 2, fini: 3 };
+const G = (x) => ETATS[x.etat]?.g || 'repos';
+const FAM = (m = '') => ['haiku', 'sonnet', 'opus', 'fable'].find((f) => m.includes(f)) || 'autre';
+const NOM = { haiku: 'Haiku', sonnet: 'Sonnet', opus: 'Opus', fable: 'Fable', autre: 'Autre' };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const dollars = (n) => n == null ? 'n/a' : `${n.toFixed(n > 0 && n < 0.1 ? 4 : 2).replace('.', ',')} $`;
+const k = (n) => n == null ? 'n/a' : n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} M` : n >= 1000 ? `${Math.round(n / 1000)} k` : String(n);
+const duree = (a, b) => { if (!a || !b) return 'n/a'; const m = Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 60000)); return m < 1 ? '< 1 min' : m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${Math.floor(m / 1440)} j ${Math.floor((m % 1440) / 60)} h`; };
+const ilya = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.floor(m / 60)} h` : `il y a ${Math.floor(m / 1440)} j`; };
+const heure = (t) => t ? new Date(t).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'n/a';
+const me = (x) => `${NOM[FAM(x.modele)]}${x.effort ? ` · ${x.effort}` : ''}`;
+const pl = (n, s, p = s + 's') => `${n} ${n > 1 ? p : s}`;
+const q = () => { const u = new URLSearchParams(); if (etat.c) u.set('c', etat.c); else u.set('s', etat.s); if (etat.moi) u.set('moi', etat.moi); if (etat.d) u.set('d', etat.d); return u; };
+const tous = () => [...D.lignee, ...D.sessions, ...D.agents];
+const trouver = (cle) => tous().find((x) => x.cle === cle);
+const derniere = () => D.lignee.length;
+
+// ── Les petits personnages : la couleur du pull dit le modèle, l'animation dit l'état.
+function perso(x) {
+  const g = G(x), f = FAM(x.modele), id = x.cle.replace(/\W/g, '');
+  const bulle = x.etat === 'attend' ? ['?', 'var(--bloque)'] : x.etat === 'interrompue' ? ['!', 'var(--rouge)'] : x.etat === 'à relire' ? ['✎', 'var(--fini)'] : null;
+  const ecran = g === 'actif' ? '<g class="ligne"><rect x="3" y="4" width="30" height="1.6" fill="#7ee2b8"/><rect x="3" y="8" width="22" height="1.6" fill="#7ee2b8" opacity=".7"/><rect x="3" y="12" width="28" height="1.6" fill="#7ee2b8" opacity=".5"/></g>'
+    : g === 'fini' && x.etat !== 'rangée' ? '<path d="M7 9 l3.5 3.5 l7-7" stroke="#8cc4ff" stroke-width="2.2" fill="none" stroke-linecap="round"/>' : x.etat === 'rangée' ? '' : '<rect x="3" y="7" width="18" height="1.4" fill="#555"/>';
+  return `<svg viewBox="0 0 80 64" class="e-${x.etat === 'rangée' ? 'range' : g}" aria-hidden="true">
+    ${g === 'actif' ? '<ellipse class="lueur" cx="40" cy="40" rx="30" ry="22"/>' : ''}
+    <g class="perso"><circle class="tete-perso" cx="40" cy="17" r="8"/><path d="M27 42 q0-15 13-15 q13 0 13 15z" fill="var(--${f})"/>
+      <g class="bras"><rect x="26" y="37" width="9" height="4" rx="2" fill="var(--${f})"/><rect x="45" y="37" width="9" height="4" rx="2" fill="var(--${f})"/></g></g>
+    <rect class="bureau-plateau" x="6" y="41" width="68" height="6" rx="2"/><rect class="bureau-pied" x="10" y="47" width="4" height="13"/><rect class="bureau-pied" x="66" y="47" width="4" height="13"/>
+    <g transform="translate(46 22)"><rect class="ecran" width="24" height="17" rx="2"/><rect x="10" y="17" width="4" height="3" fill="var(--bureau-ombre)"/>
+      <clipPath id="c${id}"><rect x="2" y="2" width="20" height="13"/></clipPath><g clip-path="url(#c${id})">${ecran}</g></g>
+    ${x.etat === 'rangée' ? '<rect x="18" y="29" width="18" height="12" rx="1.5" fill="var(--bureau-ombre)"/><rect x="18" y="29" width="18" height="3" fill="var(--bureau)"/>' : ''}
+    ${bulle ? `<g class="bulle"><circle cx="20" cy="9" r="8" fill="${bulle[1]}"/><text x="20" y="12.7" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${bulle[0]}</text></g>` : ''}
+    ${g === 'repos' ? '<text class="zz" x="52" y="10" font-size="9" font-weight="700" fill="var(--doux)">z z</text>' : ''}
+  </svg>`;
+}
+const poste = (x, taille = '') => `<button class="poste ${taille}" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}">${perso(x)}${x.relances ? `<span class="relances">↻${x.relances}</span>` : ''}${x.generation && x.generation < derniere() && taille !== 'grand' ? `<span class="gen">G${x.generation}</span>` : ''}<span class="nom">${esc(x.titre)}</span></button>`;
+function bulleDe(x) {
+  const e = ETATS[x.etat] || {};
+  const rel = x.relances ? `<br>Relancée ${pl(x.relances, 'fois', 'fois')} : coût et agents des versions précédentes comptés à part.` : '';
+  return `<b>${esc(x.titre)}</b>${esc(e.l || x.etat)} — ${esc(e.x || '')}${x.question ? `<br>❓ ${esc(x.question.slice(0, 160))}` : ''}<br>${x.genre === 'agent' ? 'Agent' : x.role === 'chef' ? `Chef, génération ${x.generation}` : 'Session'} · ${esc(me(x))} · ${dollars(x.cout)} · ${k(x.ctx)} jetons · ${duree(x.debut, x.fin)}${rel}`;
+}
+
+// ── Les agents d'une tâche : ceux qui travaillent ou bloquent ont leur poste, les finis se replient en un tas.
+function agentsEnTas(L, cle) {
+  const vifs = L.filter((a) => G(a) === 'actif' || G(a) === 'bloque');
+  const autres = L.filter((a) => !vifs.includes(a));
+  const ouvert = etat.ouverts.has(cle);
+  if (ouvert) return L.map((a) => poste(a, 'petit')).join('') + `<button class="tas" data-replier="${esc(cle)}" title="Replier les agents">▴</button>`;
+  return vifs.map((a) => poste(a, 'petit')).join('') + (autres.length ? `<button class="tas" data-deplier="${esc(cle)}" title="${esc(`${pl(autres.length, 'agent')} : ${Object.entries(autres.reduce((o, a) => { const l = ETATS[a.etat]?.l || a.etat; o[l] = (o[l] || 0) + 1; return o; }, {})).map(([l, n]) => `${n} ${l.toLowerCase()}`).join(', ')} — cliquer pour les voir`)}">${autres.slice(0, 6).map((a) => `<i style="background:var(--${FAM(a.modele)})"></i>`).join('')}<b>${autres.every((a) => G(a) === 'fini') ? '✓' : ''} ${autres.length}</b></button>` : '');
+}
+// Un pôle : une tâche (dernière forme d'une fille), ses sous-sessions et ses agents, et ceux de ses versions précédentes.
+function pole(s) {
+  const versions = []; for (let v = s; v; v = D.sessions.find((y) => y.id === v.devanciere)) versions.push(v);
+  const ids = new Set(versions.map((v) => v.id));
+  const descend = (id) => D.sessions.filter((y) => y.parent === id && !y.suite).flatMap((y) => [y, ...descend(y.id)]);
+  const sous = versions.flatMap((v) => descend(v.id)).filter((y) => !ids.has(y.id));
+  const ag = [...versions, ...sous].flatMap((y) => D.agents.filter((a) => a.proprietaire === y.id));
+  const g = GROUPES[G(s)];
+  return `<section class="pole" style="--c:${g.c}"><header><strong title="${esc(s.titre)}">${esc(s.titre)}</strong><em title="${esc(ETATS[s.etat]?.x || '')}">${esc(ETATS[s.etat]?.l || s.etat)}</em></header>
+    <div class="postes">${poste(s, 'tete')}${sous.map((y) => poste(y)).join('')}${agentsEnTas(ag, s.cle)}</div></section>`;
+}
+const filtrer = (L) => etat.groupe ? L.filter((x) => G(x) === etat.groupe) : L;
+const trier = (L) => [...L].sort((a, b) => ORDRE[G(a)] - ORDRE[G(b)] || (b.fin || '').localeCompare(a.fin || ''));
+// Les tâches : la dernière forme de chaque fille de premier niveau d'une génération.
+const taches = (gen) => D.sessions.filter((s) => !s.suite && s.profondeur === 1 && (gen == null || s.generation === gen));
+
+function vueBureau() {
+  const chef = D.chef;
+  const n = derniere();
+  // Au sol : tout ce qui n'est pas fini, quelle que soit la génération, et toutes les tâches de la génération en cours.
+  const sol = trier(filtrer(taches().filter((s) => s.generation === n || G(s) !== 'fini')));
+  const propres = D.agents.filter((a) => D.lignee.some((g) => g.id === a.proprietaire));
+  const agentsChef = filtrer(propres);
+  const anciennes = D.lignee.slice(0, -1).map((g) => {
+    const L = trier(filtrer(taches(g.generation).filter((s) => G(s) === 'fini')));
+    const ag = D.agents.filter((a) => a.generation === g.generation);
+    const cout = [g, ...D.sessions.filter((s) => s.generation === g.generation), ...ag].reduce((a, x) => a + (x.cout || 0), 0);
+    if (!L.length) return '';
+    return `<details class="gen" data-gen="${g.generation}" ${etat.ouverts.has(`g${g.generation}`) ? 'open' : ''}><summary title="${esc(g.titre)} — ${heure(g.debut)}"><b>Génération ${g.generation}</b> · ${pl(L.length, 'tâche finie', 'tâches finies')} · ${pl(ag.length, 'agent')} · ${dollars(cout)}</summary>
+      <div class="poles">${L.map(pole).join('')}</div></details>`;
+  }).reverse().join('');
+  return `<div class="sol"><div class="estrade">${poste(chef, 'grand')}</div>
+    <div class="poles">${agentsChef.length ? `<section class="pole" style="--c:var(--${FAM(chef.modele)})"><header><strong>Agents du chef</strong><em style="color:var(--doux)">${pl(agentsChef.length, 'agent')}</em></header><div class="postes">${agentsEnTas(agentsChef, 'chef')}</div></section>` : ''}${sol.map(pole).join('')}</div>
+    ${!sol.length && !agentsChef.length ? `<div class="vide">${etat.groupe ? `Rien « ${GROUPES[etat.groupe].l.toLowerCase()} » à cet instant.` : 'Aucune session ni aucun agent lancé.'}</div>` : ''}
+    ${anciennes}</div>`;
+}
+
+// ── Liste : sessions par génération (la plus récente d'abord), puis agents.
+const cEtat = (x) => { const e = ETATS[x.etat] || {}; return `<span class="etat" title="${esc(e.x)}"><i style="background:${GROUPES[G(x)].c}"></i>${esc(e.l || x.etat)}</span>`; };
+const cMod = (x) => `<span class="modele" title="Modèle et effort réellement utilisés"><i style="background:var(--${FAM(x.modele)})"></i>${esc(me(x))}</span>`;
+function vueListe() {
+  const nA = (id) => D.agents.filter((a) => a.proprietaire === id).length;
+  const ligne = (s, retrait) => `<tr class="ligne" data-cle="${esc(s.cle)}" data-bulle="${esc(s.cle)}"><td class="titre-cell" style="padding-left:${12 + retrait * 18}px">${s.role === 'chef' ? '★ ' : retrait ? '↳ ' : ''}${s.suite ? '<span title="Relancée : voir la version suivante">↻ </span>' : ''}${esc(s.titre)}</td><td>${cEtat(s)}</td><td>${cMod(s)}</td><td class="n">${dollars(s.cout)}</td><td class="n">${k(s.ctx)}</td><td class="n">${duree(s.debut, s.fin)}</td><td class="n">${nA(s.id) || ''}</td></tr>`;
+  const gens = [...D.lignee].reverse().map((g) => {
+    const L = filtrer(D.sessions.filter((s) => s.generation === g.generation));
+    return `${D.lignee.length > 1 ? `<tr class="sep"><td colspan="7">Génération ${g.generation} · ${heure(g.debut)}</td></tr>` : ''}${ligne(g, 0)}${L.map((s) => ligne(s, s.profondeur)).join('')}`;
+  }).join('');
+  const titreS = (id) => tous().find((s) => s.id === id)?.titre || '';
+  const A = filtrer(D.agents).filter((a) => !etat.pour || a.proprietaire === etat.pour).sort((a, b) => ORDRE[G(a)] - ORDRE[G(b)] || (b.debut || '').localeCompare(a.debut || ''));
+  return `<section class="section" id="s-sessions"><h2>Sessions</h2><div class="table"><table><thead><tr><th>Session</th><th>État</th><th>Modèle</th><th title="Aux prix publics, conversation seule">Coût</th><th title="Jetons relus au dernier tour">Contexte</th><th>Durée</th><th title="Agents lancés par cette session">Agents</th></tr></thead><tbody>${gens}</tbody></table></div></section>
+    <section class="section" id="s-agents"><h2>Agents${etat.pour ? ` <button class="voir-tout" data-pour="" style="font-size:12px;border:1px solid var(--trait);background:var(--carte);border-radius:99px;padding:1px 9px">pour « ${esc(titreS(etat.pour).slice(0, 40))} » ✕</button>` : ''}</h2>
+    <div class="table"><table><thead><tr><th>Agent</th><th>Pour</th><th>État</th><th>Modèle</th><th>Coût</th><th>Contexte</th><th>Durée</th></tr></thead><tbody>
+    ${A.map((a) => `<tr class="ligne" data-cle="${esc(a.cle)}" data-bulle="${esc(a.cle)}"><td class="titre-cell">${esc(a.titre)}</td><td class="titre-cell" style="color:var(--doux);font-size:13px">${esc(titreS(a.proprietaire))}</td><td>${cEtat(a)}</td><td>${cMod(a)}</td><td class="n">${dollars(a.cout)}</td><td class="n">${k(a.ctx)}</td><td class="n">${duree(a.debut, a.fin)}</td></tr>`).join('') || '<tr><td colspan="7" class="vide">Aucun.</td></tr>'}
+    </tbody></table></div></section>`;
+}
+
+
+// ── Temps : une barre par session (création → dernière activité), un trait par agent dessous. Couleur = modèle, bord = état.
+function vueTemps() {
+  const t = (x) => Date.parse(x || '') || 0;
+  const maintenant = Date.parse(D.date) || Date.now();
+  const fin = (x) => G(x) === 'actif' ? maintenant : Math.max(t(x.fin), t(x.debut));
+  const L = [...D.lignee, ...D.sessions.filter((s) => !s.suite)];
+  const t0 = Math.min(...[...L, ...D.agents].map((x) => t(x.debut)).filter(Boolean));
+  const t1 = Math.max(...L.map(fin), ...D.agents.map((a) => G(a) === 'actif' ? maintenant : t(a.fin)));   // jusqu’à maintenant seulement si quelqu’un travaille
+  if (!isFinite(t0)) return '<div class="vide">Pas encore de dates à placer.</div>';
+  const pc = (v) => `${((v - t0) / Math.max(1, t1 - t0) * 100).toFixed(3)}%`;
+  const larg = (a, b) => `${(Math.max(0, b - a) / Math.max(1, t1 - t0) * 100).toFixed(3)}%`;
+  const pas = [15, 30, 60, 120, 180, 360, 720, 1440, 2880].map((m) => m * 60000).find((p) => (t1 - t0) / p <= 9) || 5760 * 60000;
+  const ticks = []; for (let v = Math.ceil(t0 / pas) * pas; v <= t1; v += pas) ticks.push(v);
+  const etiquette = (v) => new Date(v).toLocaleString('fr-FR', pas >= 1440 * 60000 ? { day: '2-digit', month: '2-digit' } : pas >= 360 * 60000 ? { day: '2-digit', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
+  const barre = (x) => `<div class="barre-t ${G(x) === 'actif' ? 'vif' : ''}" style="left:${pc(t(x.debut) || t0)};width:${larg(t(x.debut) || t0, fin(x))};--m:var(--${FAM(x.modele)});--c:${GROUPES[G(x)].c}"></div>`;
+  const traits = (id) => filtrer(D.agents.filter((a) => a.proprietaire === id)).map((a) => `<div class="agent-t ${G(a) === 'actif' ? 'vif' : ''}" data-cle="${esc(a.cle)}" data-bulle="${esc(a.cle)}" style="left:${pc(t(a.debut) || t0)};width:${larg(t(a.debut) || t0, G(a) === 'actif' ? maintenant : t(a.fin))};--m:var(--${FAM(a.modele)})"></div>`).join('');
+  const decor = `${D.lignee.slice(1).map((g) => `<div class="coupe" style="left:${pc(t(g.debut))}" title="Génération ${g.generation}"></div>`).join('')}${t1 >= maintenant - 60000 ? `<div class="maintenant" style="left:${pc(maintenant)}" title="Maintenant"></div>` : ''}`;
+  const rang = (x, nom, gen) => `<div class="rang ${gen ? 'gen' : ''}" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}"><div class="nom">${nom}</div><div class="piste">${decor}${barre(x)}${traits(x.id)}</div></div>`;
+  const rangs = [];
+  for (const g of D.lignee) {
+    rangs.push(rang(g, `<small>G${g.generation}</small><b>${esc(g.titre)}</b>`, true));
+    const S = trier(filtrer(D.sessions.filter((s) => !s.suite && s.generation === g.generation))).sort((a, b) => t(a.debut) - t(b.debut));
+    for (const s of S) rangs.push(rang(s, `${'&nbsp;'.repeat(2 * Math.max(0, s.profondeur - 1))}↳ ${esc(s.titre)}${s.relances ? ` <small>↻${s.relances}</small>` : ''}`));
+  }
+  const legende = ['haiku', 'sonnet', 'opus', 'fable'].filter((f) => [...L, ...D.agents].some((x) => FAM(x.modele) === f)).map((f) => `<span><i style="background:var(--${f})"></i>${NOM[f]}</span>`).join('');
+  return `<section class="frise" style="--g:clamp(150px, 28%, 300px)"><div class="axe">${ticks.map((v) => `<span style="left:${pc(v)}">${etiquette(v)}</span>`).join('')}</div>${rangs.join('')}
+    <div class="legende">${legende}<span>bord : état</span><span>trait fin : un agent</span><span>pointillés : relance de l’orchestration</span><span style="color:var(--actif)">│ maintenant</span></div></section>`;
+}
+
+function rendre() {
+  const m = document.getElementById('main');
+  if (!D) return;
+  if (D.erreur) { m.innerHTML = `<div class="vide">${esc(D.erreur)}</div>`; return; }
+  const T = D.totaux, chef = D.chef, ph = phraseHaiku[chef.cle];
+  document.title = `${chef.titre} — Session Desk`;
+  // Les tuiles comptent les tâches (dernière forme de chaque fille) et les agents.
+  const vivants = [...D.sessions.filter((s) => !s.suite), ...D.agents];
+  const n = (g) => vivants.filter((x) => G(x) === g).length;
+  const bloques = trier(vivants.filter((x) => G(x) === 'bloque')).slice(0, 8);
+  m.innerHTML = `
+    ${D.lignee.length > 1 || D.parent ? `<div class="lignee">${D.parent ? `<span>Lancée par</span><a href="?s=${encodeURIComponent(D.parent.id)}" style="color:inherit">${esc(D.parent.titre)}</a><span>·</span>` : ''}${D.lignee.length > 1 ? D.lignee.map((g, i) => `${i ? '<span>→</span>' : ''}<button data-cle="${esc(g.cle)}" data-bulle="${esc(g.cle)}" class="${i === D.lignee.length - 1 ? 'ici' : ''}">G${g.generation}</button>`).join('') : ''}</div>` : ''}
+    <h1>${esc(chef.titre)}</h1>
+    <p class="phrase ${ph ? 'haiku' : ''}" title="${ph ? esc(`Écrite par Haiku 5.5 · low${ph.cache ? ', en cache (0 $)' : `, ${dollars(ph.cout)}`}`) : 'Calculée à partir des titres ; Haiku la réécrit une fois'}">${esc(ph?.texte || D.phrase)}</p>
+    <div class="etats">${Object.entries(GROUPES).map(([g, v]) => `<button class="tuile ${etat.groupe === g ? 'choisi' : ''} ${n(g) ? '' : 'zero'} ${g === 'actif' && n(g) ? 'anime' : ''}" style="--c:${v.c}" data-groupe="${g}" title="${esc(v.x)} Cliquer pour n’afficher qu’eux.">
+      <b><i></i>${n(g)}</b><span>${v.l}</span></button>`).join('')}</div>
+    <div class="annexes">
+      <span title="Coût de toute la lignée aux prix publics, agents compris (${dollars(T.coutAgents)} pour les agents)"><b>${T.coutPartiel ? '≥ ' : ''}${dollars(T.cout)}</b> coût total</span>
+      <button data-mode="liste" title="Sessions lancées, relances comprises">${pl(T.sessions, 'session')}${T.relancees ? ` (${T.relancees} ↻)` : ''}</button>
+      <button data-mode="liste" data-ancre="s-agents" title="Agents lancés par toute la lignée">${pl(T.agents, 'agent')}</button>
+      ${T.generations > 1 ? `<span title="La même orchestration, relancée dans une session neuve quand elle devenait trop lourde"><b>${T.generations}</b> générations</span>` : ''}
+      <button data-cle="${esc(chef.cle)}" title="Jetons relus au dernier tour par le chef — au-delà de 300 k, relancer coûte moins"><b>${k(chef.ctx)}</b> contexte chef</button>
+    </div>
+    ${bloques.length && etat.mode === 'bureau' && !etat.groupe ? `<section class="bloques"><h2 title="${esc(GROUPES.bloque.x)}">À débloquer</h2>${bloques.map((x) => `<button class="bloque" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}">${perso(x)}<div><strong>${esc(x.titre)}</strong><small>${esc(x.question || (ETATS[x.etat]?.x) || '')}</small></div></button>`).join('')}</section>` : ''}
+    ${annonce ? `<div class="annonce">${annonce}</div>` : ''}${etat.mode === 'liste' ? vueListe() : etat.mode === 'temps' ? vueTemps() : vueBureau()}`;
+  document.querySelectorAll('.modes button').forEach((b) => b.classList.toggle('actif', b.dataset.mode === etat.mode));
+}
+
+// ── Panneau « voir plus » : les faits tout de suite, le récit de Haiku dès qu'il arrive (ou du cache).
+async function ouvrirPanneau(cle, forcer) {
+  const x = trouver(cle); if (!x) return;
+  const p = document.getElementById('panneau'), e = ETATS[x.etat] || {};
+  p.dataset.cle = cle;
+  const prop = x.genre === 'agent' ? tous().find((s) => s.id === x.proprietaire) : null;
+  const nAg = x.genre === 'session' ? D.agents.filter((a) => a.proprietaire === x.id).length : 0;
+  const avant = x.devanciere && trouver(`s:${x.devanciere}`), apres = x.suite && trouver(`s:${x.suite}`);
+  const genPrec = x.role === 'chef' && D.lignee[x.generation - 2], genSuiv = x.role === 'chef' && D.lignee[x.generation];
+  p.innerHTML = `<button class="fermer" title="Fermer (Échap)">✕</button>
+    <div class="etat" title="${esc(e.x)}"><i style="background:${GROUPES[G(x)].c}"></i>${esc(e.l)} · ${x.genre === 'agent' ? 'agent' : x.role === 'chef' ? `chef, génération ${x.generation}` : 'session'}</div>
+    <h2>${esc(x.titre)}</h2>
+    ${x.question ? `<div class="question">❓ ${esc(x.question)}</div>` : ''}
+    <dl class="faits">
+      <dt>Modèle</dt><dd>${cMod(x)}</dd>
+      <dt>Coût</dt><dd title="${x.coutSource === 'relevé' ? `Relevé de Claude Code (cost-state), qui voit aussi les appels absents de la transcription ; agents comptés à part. Calcul sur la transcription : ${dollars(x.coutCalcule)}` : 'Calculé sur la transcription aux prix publics du 06/10/2026 : un plancher (médiane −4,8 % du relevé de Claude Code sur 222 sessions)'}">${dollars(x.cout)} <span style="color:var(--doux);font-size:12px">${x.coutSource === 'relevé' ? 'relevé' : 'calculé'}</span></dd>
+      <dt>Contexte</dt><dd title="Jetons relus au dernier tour">${k(x.ctx)} jetons</dd>
+      <dt>Durée</dt><dd title="Du ${heure(x.debut)} au ${heure(x.fin)}">${duree(x.debut, x.fin)}</dd>
+      ${prop ? `<dt>Pour</dt><dd><a href="#" data-cle="${esc(prop.cle)}">${esc(prop.titre)}</a></dd>` : ''}
+      ${nAg ? `<dt>Agents</dt><dd><a href="#" data-pour="${esc(x.id)}">${pl(nAg, 'agent')}</a></dd>` : ''}
+      ${avant ? `<dt>Relance de</dt><dd><a href="#" data-cle="${esc(avant.cle)}">${esc(avant.titre)}</a></dd>` : ''}
+      ${apres ? `<dt>Relancée en</dt><dd><a href="#" data-cle="${esc(apres.cle)}">${esc(apres.titre)}</a></dd>` : ''}
+      ${genPrec ? `<dt>Avant</dt><dd><a href="#" data-cle="${esc(genPrec.cle)}">G${genPrec.generation} · ${esc(genPrec.titre)}</a>${x.lien ? ` <span style="color:var(--doux)" title="Comment le lien a été établi">(${esc(x.lien)})</span>` : ''}</dd>` : ''}
+      ${genSuiv ? `<dt>Après</dt><dd><a href="#" data-cle="${esc(genSuiv.cle)}">G${genSuiv.generation} · ${esc(genSuiv.titre)}</a></dd>` : ''}
+      ${x.nonCommite ? `<dt>Non commité</dt><dd>${pl(x.nonCommite, 'fichier')}</dd>` : ''}
+      ${x.surveille?.length ? `<dt>Surveille</dt><dd>${esc(x.surveille.join(' ; '))}</dd>` : ''}
+    </dl>
+    <div class="recit" id="recit"><div class="attente"><b></b>Haiku 5.5 · low résume…</div></div>
+    ${x.plan?.length ? `<h4>Plan</h4><ul class="plan">${x.plan.map((s) => `<li class="${esc(s.etat)}">${esc(s.quoi)}</li>`).join('')}</ul>` : ''}
+    ${x.commits?.length ? `<h4>Commits</h4><ul class="plan">${x.commits.map((c) => `<li class="completed">${esc(c)}</li>`).join('')}</ul>` : ''}
+    <h4>Identifiant</h4><code>${esc(x.id)}</code>`;
+  p.classList.add('ouvert'); document.getElementById('voile').classList.add('ouvert'); p.setAttribute('aria-hidden', 'false');
+  const u = q(); u.set('k', cle); if (forcer) u.set('forcer', '1');
+  let r; try { r = await (await fetch(`/api/recit?${u}`, { method: forcer ? 'POST' : 'GET' })).json(); } catch { r = { erreur: 'Le serveur local ne répond plus : relancer /sessiondesk.' }; }
+  const zone = document.getElementById('recit'); if (!zone || p.dataset.cle !== cle) return;
+  zone.innerHTML = r.erreur ? `<p class="attente">${esc(r.erreur)}</p>` : `<h3>Fait</h3><p>${esc(r.fait)}</p><h3>Rendu</h3><p>${esc(r.rendu)}</p><h3>Reste</h3><p>${esc(r.reste)}</p>
+    <div class="pied"><span title="Écrit par Haiku 5.5 en effort faible sur un extrait de ${r.caracteres ?? '?'} caractères ; gardé tant que l’état ne change pas">${r.cache ? `En cache · 0 $` : `Haiku · ${dollars(r.cout)} · ${(r.ms / 1000).toFixed(1).replace('.', ',')} s`}</span><button data-refaire="${esc(cle)}">Refaire</button></div>`;
+}
+function fermer() { const p = document.getElementById('panneau'); p.classList.remove('ouvert'); p.setAttribute('aria-hidden', 'true'); p.dataset.cle = ''; document.getElementById('voile').classList.remove('ouvert'); }
+
+// ── Environnements : une orchestration par lignée.
+function rendreEnvs(f = '') {
+  const L = ENVS.filter((e) => !f || `${e.projet} ${e.titre}`.toLowerCase().includes(f.toLowerCase()));
+  const parP = {}; for (const e of L) (parP[e.projet] ||= []).push(e);
+  const ici = etat.c || etat.s;
+  const dans = (e) => e.id === ici || (D?.lignee || []).some((g) => g.id === e.id);
+  document.getElementById('envListe').innerHTML = Object.entries(parP).map(([p, E]) => `<h4>${esc(p)}</h4>${E.map((e) => `<a href="#" data-env="${esc(e.id)}" data-genre="${e.genre}" class="${dans(e) ? 'ici' : ''}">${esc(e.titre)}<small>${e.genre === 'terminal' ? 'terminal · ' : ''}${e.generations > 1 ? `${e.generations} générations · ` : ''}${e.sessions ? `${pl(e.sessions, 'session')} · ` : ''}${pl(e.agents, 'agent')} · ${ilya(e.derniere)}</small></a>`).join('')}`).join('') || '<div class="vide">Aucune.</div>';
+  const cur = D?.chef ? D.chef : null;
+  document.getElementById('envNom').textContent = cur ? `${cur.projet} · ${cur.titre}` : 'Orchestration';
+}
+function allerEnv(id, genre) {
+  if (genre === 'terminal') { etat.c = id; etat.s = ''; } else { etat.s = id; etat.c = ''; }
+  etat.groupe = ''; etat.pour = ''; etat.ouverts = new Set();
+  const u = q(); u.set('mode', etat.mode); history.replaceState(null, '', `?${u}`);
+  document.getElementById('envs').classList.remove('ouvert'); D = null; document.getElementById('main').innerHTML = '<div class="vide">Lecture des transcriptions…</div>';
+  charger(true);
+}
+
+// ── Chargement : les données toutes les 5 s (sans modèle), la phrase Haiku une fois par lignée.
+async function charger(phrase) {
+  const a = document.getElementById('ajour'); a.classList.add('charge');
+  try { D = await (await fetch(`/api/env?${q()}`)).json(); } catch { D = { erreur: 'Le serveur local ne répond plus : relancer /sessiondesk.' }; }
+  a.classList.remove('charge'); a.querySelector('span').textContent = `À jour ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+  if (!D.erreur && !etat.s && !etat.c) etat.s = D.chef.id;
+  // Une orchestration relancée dans une session neuve : la page suit la nouvelle génération et le dit.
+  if (!D.erreur) { const cle = D.lignee[0].id, n = D.lignee.length;
+    if (vuGen[cle] && n > vuGen[cle]) { annonce = `↻ L’orchestration vient d’être relancée : génération ${n}, « ${esc(D.chef.titre)} ». La page la suit.`; try { new Notification('Session Desk', { body: `Génération ${n} : ${D.chef.titre}` }); } catch {} }
+    vuGen[cle] = n; }
+  rendre(); rendreEnvs(document.getElementById('envCherche').value);
+  if (phrase && !D.erreur && (D.sessions.length || D.agents.length)) {
+    try { const r = await (await fetch(`/api/phrase?${q()}`)).json(); if (r.texte) { phraseHaiku[D.chef.cle] = r; rendre(); } } catch {}
+  }
+}
+
+document.addEventListener('click', (ev) => {
+  const t = ev.target.closest('[data-cle],[data-mode],[data-groupe],[data-env],[data-pour],[data-refaire],[data-deplier],[data-replier],summary,.fermer,#voile,#envBouton');
+  if (!t) { if (!ev.target.closest('.envs')) document.getElementById('envs').classList.remove('ouvert'); return; }
+  if (t.tagName === 'SUMMARY') { const g = `g${t.parentElement.dataset.gen}`; setTimeout(() => { t.parentElement.open ? etat.ouverts.add(g) : etat.ouverts.delete(g); }); return; }
+  ev.preventDefault();
+  if (t.id === 'envBouton') { document.getElementById('envs').classList.toggle('ouvert'); document.getElementById('envCherche').focus(); return; }
+  if (t.dataset.refaire) return ouvrirPanneau(t.dataset.refaire, true);
+  if (t.classList.contains('fermer') || t.id === 'voile') return fermer();
+  if (t.dataset.env) return allerEnv(t.dataset.env, t.dataset.genre);
+  if (t.dataset.deplier) { etat.ouverts.add(t.dataset.deplier); return rendre(); }
+  if (t.dataset.replier) { etat.ouverts.delete(t.dataset.replier); return rendre(); }
+  if (t.dataset.groupe) { etat.groupe = etat.groupe === t.dataset.groupe ? '' : t.dataset.groupe; return rendre(); }
+  if (t.dataset.mode) { etat.mode = t.dataset.mode; try { localStorage.setItem('sd-mode', etat.mode); } catch {} rendre(); if (t.dataset.ancre) document.getElementById(t.dataset.ancre)?.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (t.dataset.pour != null) { fermer(); etat.pour = t.dataset.pour; etat.mode = 'liste'; rendre(); document.getElementById('s-agents')?.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (t.dataset.cle) return ouvrirPanneau(t.dataset.cle);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fermer(); document.getElementById('envs').classList.remove('ouvert'); } });
+document.getElementById('envCherche').addEventListener('input', (e) => rendreEnvs(e.target.value));
+const bulle = document.getElementById('bulle');
+document.addEventListener('mouseover', (e) => { const t = e.target.closest('[data-bulle]'); if (!t || !D || D.erreur) return bulle.classList.remove('vu'); const x = trouver(t.dataset.bulle); if (!x) return; bulle.innerHTML = bulleDe(x); bulle.classList.add('vu'); });
+document.addEventListener('mousemove', (e) => { if (!bulle.classList.contains('vu')) return; const w = bulle.offsetWidth, h = bulle.offsetHeight; bulle.style.left = `${Math.min(innerWidth - w - 8, e.clientX + 14)}px`; bulle.style.top = `${e.clientY + h + 24 > innerHeight ? e.clientY - h - 12 : e.clientY + 16}px`; });
+
+fetch('/api/envs').then((r) => r.json()).then((E) => { ENVS = E; rendreEnvs(); }).catch(() => {});
+charger(true);
+setInterval(() => { if (!document.hidden && !document.getElementById('panneau').classList.contains('ouvert')) charger(false); }, 5000);
+</script>
+</body>
+</html>

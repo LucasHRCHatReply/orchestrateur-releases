@@ -1,0 +1,11 @@
+<style>.q{padding:1rem 0}.q h3{margin:0 0 4px}.q p{margin:0 0 12px;font-size:14px;color:var(--text-secondary);line-height:1.5}.q svg{width:100%;height:auto;margin:0 0 12px}.o{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.o button{text-align:left;height:auto;padding:12px;background:var(--surface-2);white-space:normal}.o button b{display:block;font-weight:500}.o button span{display:block;font-size:13px;color:var(--text-secondary);margin-top:4px}.o button.r{border:2px solid var(--border-accent)}.o i{font-style:normal;font-size:12px;background:var(--bg-accent);color:var(--text-accent);padding:2px 8px;border-radius:var(--radius);float:right}</style>
+<div class="q"><h2 class="sr-only">Une session fille demande l'autorisation de supprimer un dossier.</h2>
+<h3>La session « nettoyage » veut supprimer un dossier</h3>
+<p>Commande demandée : rm -r build/. Le dossier se régénère par npm run build ; rien de versionné n'y est stocké.</p>
+<svg viewBox="0 0 680 120" role="img"><title>La session fille attend ; la décision revient à l'utilisateur</title><rect class="c-purple" x="20" y="40" width="190" height="40" rx="4"/><text class="t" x="115" y="65" text-anchor="middle">session nettoyage</text><rect class="c-amber" x="260" y="40" width="160" height="40" rx="4"/><text class="t" x="340" y="65" text-anchor="middle">rm -r build/</text><rect class="c-gray" x="470" y="40" width="190" height="40" rx="4"/><text class="t" x="565" y="65" text-anchor="middle">votre décision</text></svg>
+<div class="o">
+<button class="r" data-r="Je vais autoriser moi-même dans la session nettoyage ; attends mon retour."><i>recommandé</i><b>Je l'autorise là-bas</b><span>La session s'ouvre ; une touche à presser.</span></button>
+<button data-r="Refuse : dis à la session nettoyage de laisser build/ et de continuer sans le supprimer."><b>Refuser</b><span>La fille poursuit sans supprimer.</span></button>
+<button data-r="Prépare la liste d'autorisations du projet avec rm -r build/ ; je la validerai."><b>Plus jamais cette question</b><span>Une règle à valider, pas d'accord automatique.</span></button>
+</div></div>
+<script>document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>sendPrompt(b.dataset.r))</script>
