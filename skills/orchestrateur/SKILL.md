@@ -1,10 +1,10 @@
 ---
 name: orchestrateur
 description: Session « prompt master » qui orchestre un chantier — découpe en étapes, lance de vraies sessions Claude Code (pas seulement des agents) avec pour chacune le modèle et l'effort les plus bas qui suffisent, les suit, les relance quand elles deviennent trop lourdes, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (sessions, agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 1.7.0
+version: 2.0.0
 ---
 
-# Orchestrateur — v1.3.2 du 02/11/2026
+# Orchestrateur — v2.0.0 du 03/11/2026
 
 Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**.
@@ -77,6 +77,9 @@ cd ../<dépôt>-<tâche> && nohup claude -p "$(cat brief.md)" \
   --output-format stream-json --verbose > ~/.cache/orch/<tâche>.jsonl 2>&1 &
 ```
 
+**Piège mesuré (03/11)** : avec `claude -p`, l'alias `--model haiku` donne **Haiku 4.5** (10× le prix de Haiku 5.5).
+Passer l'id complet `--model claude-haiku-5-5`. Dans l'app, un agent `model: "haiku"` tourne bien sur Haiku 5.5.
+
 Suivre : `tail` du fichier de sortie à chaque point ; la session rend son résumé dans le dernier
 événement `result`. Pour une session que l'utilisateur veut voir et piloter : lui donner la commande
 `claude --model sonnet` à lancer dans un nouvel onglet du worktree, avec le brief à coller.
@@ -132,7 +135,8 @@ monter le **modèle** avant l'**effort**. Juger sur le **gros du travail** (ce q
   expliquer l'obstacle et passer à autre chose. Après 3 réussites vérifiées de suite, essayer le cran en dessous.
 - **Jamais `max`.**
 
-**Annonce obligatoire, avant chaque lancement**, une ligne dans la conversation, même pour un seul agent
+**Annonce obligatoire, avant chaque lancement** (dans l'app, le texte écrit juste avant un appel d'outil n'est pas
+enregistré dans la transcription : aucun hook ne peut la contrôler, elle repose sur ce skill), une ligne dans la conversation, même pour un seul agent
 *(mesuré : faite dans 24 % des orchestrations seulement ; le hook `aiguillage` la rappelle si elle manque)* :
 
 > → relais-fichiers — Sonnet · medium — parce que code multi-fichiers vérifiable par `make test` (Opus n'a rien battu au banc, 2× le prix)
@@ -153,10 +157,21 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
 3. **Déjà décidé / ne pas refaire.**
 4. **Conditions d'arrêt** dites par l'utilisateur (« arrête-toi une fois publié », « avant 18 h »).
 5. **Processus de fond** : tout banc, serveur, `caffeinate`, surveillance qu'elle lance, elle l'arrête à la fin et le liste dans son rapport.
-6. **Rapport attendu** : 5 lignes au plus — fait, preuve (lien, commande, capture), reste, ce qui attend l'humain.
+6. **Rapport attendu** : 5 champs — fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle) ;
+   non fait ou non vérifié ; décisions prises ; ce qui attend l'humain. Plus une ligne « ce qui contredit le brief ».
+
+**Comment le remplir : `methode-brief.md`** (veille de 23 sources, `references/veille-prompts-2026-11.md`).
+L'essentiel : lire avant de demander ; ne poser des questions que si deux lectures mènent à des livrables
+différents, si le critère ou le périmètre manque, ou si l'action est irréversible (au plus 3, en un message,
+avec le défaut recommandé) ; critère de fin = une commande et sa valeur attendue ; contexte par chemins, pas
+par copie ; brief adapté au modèle (Haiku : étapes et critère mécanique ; Opus : spécification complète, sans
+« vérifie deux fois »). *Statut : non prouvé au banc A/B du 03/11 (tâches trop faciles, le brief naïf réussissait
+déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15). À remesurer sur des tâches dures.*
 
 ## 5. Pendant
 
+- **Le bandeau** (extension de l'app, `mod/`) se tient replié au-dessus de la saisie : « ◎ Orchestration · n en cours » ;
+  un clic montre qui travaille, qui attend, le contexte et le coût, et « Bureau ↗ » ouvre `/sessiondesk`.
 - **`/orch`** donne à tout moment le tableau de bord de l'orchestration (sessions, agents, poids, coût, règles tenues ✓/✗) ; s'en servir pour le point et avant le compte rendu final.
 - **Point toutes les 4–5 minutes, armé par une minuterie** (skill `/point 5`, ou `CronCreate`/`ScheduleWakeup`) :
   heure lue à l'horloge, étape n/N, fait/en cours par session, échecs (cause + parade), reste estimé, en clair.
@@ -165,6 +180,18 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
 - **Une remarque de l'utilisateur qui concerne une fille** lui est transmise (`SendMessage`) tout de suite ; l'orchestratrice confirme « transmis à <nom> ».
 - **Une consigne à heure dite** (« à 12 h, passe sur Relais ») s'arme en minuterie ou s'écrit dans le plan avec l'heure ; jamais de mémoire. *(mesuré : « je t'avais pas dit de bosser sur Relais à 12 h ? »)*
 - Le rapport d'une fille **n'est pas une preuve** : ouvrir le diff, relancer le test, regarder la page.
+  **Le vérificateur** (`agents/verificateur.md`, Haiku · medium) le fait à la place : un seul par chantier,
+  lancé avec les critères de fin de chaque fille, puis continué par `SendMessage` avec chaque rapport ;
+  il relance les commandes, recompte, ouvre les diffs, et rend « accepté » ou « à reprendre » avec la consigne
+  à renvoyer. *(mesuré le 03/11 : 16 défauts semés sur 16 trouvés, 0 fausse alerte sur 8 cas justes, 0,0023 $
+  par vérification ; cas petits, effet plafond possible.)*
+- **Une fille qui attend l'utilisateur** (question ou autorisation) : le hook `attente` l'écrit dans
+  `~/.cache/orchestration/attentes/`, le bandeau la compte. L'orchestratrice la présente en carte
+  (`questions-visuelles.md`, gabarit `outils/question-carte.html`, ≈ 550 jetons) : la question en mots simples,
+  le contexte, un schéma, 2 à 4 options avec leur conséquence, la recommandée en premier ; la réponse part à la
+  fille par `SendMessage`. **Une autorisation d'outil reste la décision de l'utilisateur** : l'orchestratrice
+  l'explique et le dit, elle ne l'approuve jamais à sa place (un message n'est pas un clic, et les filles le refusent).
+  Les autorisations récurrentes s'évitent en amont : liste d'autorisations validée par l'utilisateur.
 - Un obstacle qui résiste à deux tentatives : l'expliquer en français courant, le noter, passer à autre chose.
 - Une remarque de l'utilisateur en cours de route se range dans l'étape qui la couvre ; elle ne rouvre pas l'ordre du plan.
 

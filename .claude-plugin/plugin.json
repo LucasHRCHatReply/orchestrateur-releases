@@ -1,6 +1,6 @@
 {
   "name": "orchestrateur",
-  "version": "1.7.0",
+  "version": "2.0.0",
   "description": "Orchestre un chantier : découpe en étapes, lance des sessions avec le modèle et l'effort les plus bas qui suffisent, suit leur poids et rend un résultat qu'on peut ouvrir.",
   "author": { "name": "orchestrateur" },
   "license": "UNLICENSED",

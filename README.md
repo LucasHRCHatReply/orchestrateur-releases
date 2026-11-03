@@ -2,7 +2,7 @@
 
 Un skill qui orchestre un chantier dans Claude Code : il découpe le travail en étapes, lance de vraies sessions avec
 le modèle et l'effort les plus bas qui suffisent, suit leur poids, les relance quand elles deviennent trop lourdes
-et rend un résultat qu'on peut ouvrir. Version 1.7.0.
+et rend un résultat qu'on peut ouvrir. Version 2.0.0.
 
 ## Installer
 
