@@ -2,7 +2,12 @@
 
 Un skill qui orchestre un chantier dans Claude Code : il découpe le travail en étapes, lance de vraies sessions avec
 le modèle et l'effort les plus bas qui suffisent, suit leur poids, les relance quand elles deviennent trop lourdes
-et rend un résultat qu'on peut ouvrir. Version 2.0.1.
+et rend un résultat qu'on peut ouvrir. Version 2.0.2.
+
+## Prérequis
+
+- **Claude Code** (app de bureau, onglet Code, ou `claude` dans un terminal), pas une conversation claude.ai : un chat ne peut rien installer.
+- **macOS**. **Node.js 18 ou plus** (les hooks sont écrits en Node ; `node --version` pour le vérifier, sinon nodejs.org).
 
 ## Installer
 
