@@ -12,6 +12,7 @@ const lireStdin = () => { try { return fs.readFileSync(0, 'utf8'); } catch { ret
 
 const AVERTIR = 200_000;   // la session coûte déjà cher : préparer la relance (mesure du 20/10 : 80 % du coût Opus est au-delà de 300 000)
 const RELANCER = 300_000;  // relancer à la fin de l'étape en cours (seuils recalculés le 20/10, voir la règle)
+const IMMEDIAT = 500_000;  // relancer tout de suite, sans finir l'étape (skill orchestrateur, section 5)
 const NOTE = 250_000;      // la note de reprise s'écrit d'elle-même (02/11 : une grosse session sur deux seulement en laissait une)
 const RAPPEL_TOUS = 100_000; // au-delà, un nouveau rappel tous les 100 000 jetons de plus
 const ETAT = path.join(os.homedir(), '.cache', 'orchestration', 'poids-sessions');
@@ -69,11 +70,13 @@ try {
 
   const k = Math.round(contexte / 1000);
   const fort = contexte >= RELANCER;
+  const immediat = contexte >= IMMEDIAT;
   const texte = fort
     ? `Poids de cette session : elle relit environ ${k} 000 jetons à chaque tour, ce qui vide vite le quota. Règle du skill orchestrateur (section 5) : à la fin de l'étape en cours, ne lance rien de nouveau ; écris une note de reprise (état chiffré, fichiers et commandes, traitements inachevés et comment les reprendre, décisions, prochaines étapes, ce qui attend l'utilisateur), commite, puis propose de continuer dans une session neuve où Opus orchestre et Sonnet relève.`
     : `Poids de cette session : elle relit déjà environ ${k} 000 jetons à chaque tour. Garde les relevés, captures et gros fichiers dans des agents Sonnet qui rendent un résumé, et prépare la note de reprise : au-delà de 300 000, la relance avec note de reprise s'applique (skill orchestrateur, section 5).`;
 
-  const texteFinal = note
+  const urgent = `Poids de cette session : elle relit environ ${k} 000 jetons à chaque tour, soit plus de 500 000 : chaque message coûte plusieurs fois ce qu'il coûterait dans une session neuve. Règle du skill orchestrateur (section 5) : relance TOUT DE SUITE, sans finir l'étape. Ne lance rien de nouveau ; écris la note de reprise${note ? ` (le code vient d'en écrire une : ${note}, complète-la)` : ''}, commite, et dis à l'utilisateur de repartir dans une session neuve avec le prompt de la section « Comment reprendre ».`;
+  const texteFinal = immediat ? urgent : note
     ? `Poids de cette session : ~${k} 000 jetons relus par tour. Une note de reprise vient d'être écrite par le code : ${note}. À la fin de l'étape en cours : complète-la (décisions prises, chiffres avec leur source, pièges rencontrés, ce que la note automatique a mal dit), commite, puis dis à l'utilisateur en une ligne que la suite peut repartir dans une session neuve avec le prompt de la section « Comment reprendre ». Ne lance rien de nouveau avant.`
     : texte;
   const evenement = entree.hook_event_name || (entree.prompt !== undefined ? 'UserPromptSubmit' : 'PostToolUse');
@@ -87,6 +90,6 @@ try {
   }
   etat.dernier = contexte;
   fs.writeFileSync(fEtat, JSON.stringify(etat));
-  fs.appendFileSync(JOURNAL, JSON.stringify({ ts: new Date().toISOString(), session, cwd: entree.cwd, contexte, palier: note ? 'note' : fort ? 'relancer' : 'avertir', note: note || undefined }) + '\n');
+  fs.appendFileSync(JOURNAL, JSON.stringify({ ts: new Date().toISOString(), session, cwd: entree.cwd, contexte, palier: immediat ? 'immediat' : note ? 'note' : fort ? 'relancer' : 'avertir', note: note || undefined }) + '\n');
 } catch {}
 process.exit(0);

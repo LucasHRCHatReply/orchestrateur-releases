@@ -1,7 +1,7 @@
 ---
 name: orchestrateur
 description: Session « prompt master » qui orchestre un chantier — découpe en étapes, lance de vraies sessions Claude Code (pas seulement des agents) avec pour chacune le modèle et l'effort les plus bas qui suffisent, les suit, les relance quand elles deviennent trop lourdes, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (sessions, agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 2.0.0
+version: 2.0.1
 ---
 
 # Orchestrateur — v2.0.0 du 03/11/2026
