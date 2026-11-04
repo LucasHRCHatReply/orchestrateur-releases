@@ -71,7 +71,7 @@ Un seul document hors sujet dans le contexte suffit à faire perdre en exactitud
   Pas de copie de fichier, pas de résumé de la conversation. Le chargement à la demande vaut mieux que le déversement [5].
 - **Les décisions implicites qui engagent plusieurs filles s'écrivent une fois, dans un brief commun** : style, nommage, conventions,
   format des sorties. Deux filles qui écrivent sans les voir prennent des décisions contradictoires [19, 21].
-- **Pas d'index de code à brancher pour une fille** (CodeGraph mesuré : +40 % de coût, mêmes réponses et mêmes tours, jusqu'à 738 fichiers, `CHANGELOG.md` 2.0.3). Si le dépôt en a déjà un, le brief nomme l'outil et colle son bloc d'instructions : le sous-agent n'hérite pas des instructions MCP.
+- **Pas d'index de code à brancher pour une fille** (CodeGraph mesuré : +32 à +41 % de coût, mêmes réponses et mêmes tours, jusqu'à 738 fichiers, `CHANGELOG.md` 2.0.3). Si le dépôt en a déjà un, le brief nomme l'outil et colle son bloc d'instructions : le sous-agent n'hérite pas des instructions MCP.
 - **Écriture : une seule fille par fichier.** La lecture parallèle se multiplie sans risque ; l'écriture parallèle non [20, 21].
 - **Fork seulement si** la conversation est courte et tout y est utile ; sinon contexte neuf et brief écrit [10, 20].
 - **Disposition.** But en tête ; si le brief dépasse une soixantaine de lignes, rappeler le critère de fin en dernier. Les sources se

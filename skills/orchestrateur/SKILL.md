@@ -162,7 +162,7 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
 
 **Index de code (CodeGraph et équivalents) : ne pas en installer pour les filles.** Mesuré le 04/11 sur 64 essais
 (Haiku 5.5 · medium, Sonnet 5.5 · low, `outils/bancs/outils-externes/resultats-gros.csv`) : sur un dépôt de 738 fichiers
-comme sur un de 130, mêmes réponses exactes (11/16), mêmes tours (32 et 33), coût **+40 %** (cache écrit : définitions d'outils
+comme sur un de 130, mêmes réponses exactes (11/16), mêmes tours (32 et 33), jetons **+19 à +30 %** et coût **+32 à +41 %** selon le calcul (cache écrit : définitions d'outils
 en plus). Un sous-agent ne reçoit pas les instructions MCP : si un index existe déjà, le brief nomme l'outil et colle son bloc,
 sinon la fille l'ignore. Au-delà de 738 fichiers ou pour des questions d'analyse en chaîne : non mesuré.
 
