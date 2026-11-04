@@ -1,10 +1,10 @@
 ---
 name: orchestrateur
 description: Session « prompt master » qui orchestre un chantier — découpe en étapes, lance de vraies sessions Claude Code (pas seulement des agents) avec pour chacune le modèle et l'effort les plus bas qui suffisent, les suit, les relance quand elles deviennent trop lourdes, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (sessions, agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 2.0.2
+version: 2.0.3
 ---
 
-# Orchestrateur — v2.0.0 du 03/11/2026
+# Orchestrateur — v2.0.3 du 04/11/2026
 
 Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**.
@@ -159,6 +159,12 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
 5. **Processus de fond** : tout banc, serveur, `caffeinate`, surveillance qu'elle lance, elle l'arrête à la fin et le liste dans son rapport.
 6. **Rapport attendu** : 5 champs — fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle) ;
    non fait ou non vérifié ; décisions prises ; ce qui attend l'humain. Plus une ligne « ce qui contredit le brief ».
+
+**Index de code (CodeGraph et équivalents) : ne pas en installer pour les filles.** Mesuré le 04/11 sur 64 essais
+(Haiku 5.5 · medium, Sonnet 5.5 · low, `outils/bancs/outils-externes/resultats-gros.csv`) : sur un dépôt de 738 fichiers
+comme sur un de 130, mêmes réponses exactes (11/16), mêmes tours (32 et 33), coût **+40 %** (cache écrit : définitions d'outils
+en plus). Un sous-agent ne reçoit pas les instructions MCP : si un index existe déjà, le brief nomme l'outil et colle son bloc,
+sinon la fille l'ignore. Au-delà de 738 fichiers ou pour des questions d'analyse en chaîne : non mesuré.
 
 **Comment le remplir : `methode-brief.md`** (veille de 23 sources, `references/veille-prompts-2026-11.md`).
 L'essentiel : lire avant de demander ; ne poser des questions que si deux lectures mènent à des livrables
