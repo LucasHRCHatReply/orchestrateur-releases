@@ -23,6 +23,8 @@ const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2
 const drapeau = (n) => { const i = args.indexOf(n); if (i >= 0) args.splice(i, 1); return i >= 0; };
 const JSON_ = drapeau('--json');
 const AVEC_ARCHIVEES = drapeau('--avec-archivees');
+// `relance <id> --compaction` : la session ne se relance pas, elle compacte sur place ; la note est RÉÉCRITE à chaque appel (état à jour) et sert de mémoire après le compactage.
+const COMPACTION = drapeau('--compaction');
 const DOSSIER = opt('--dossier') || process.cwd();
 const SESSION = opt('--session') || '';
 const MAINTENANT_ARG = opt('--maintenant');
@@ -376,7 +378,7 @@ function note(x, ecrire = true, relance = false) {
   const jour = jourDe();
   const fichier = path.join(dossier, `${jour}-reprise-${slug(x.titre)}-${x.id.slice(6, 14)}.md`);
   if (!ecrire) return fichier;
-  if (relance && fs.existsSync(fichier)) return fichier;   // la note de relance s'écrit une fois ; la session la complète
+  if (relance && !COMPACTION && fs.existsSync(fichier)) return fichier;   // la note de relance s'écrit une fois ; la session la complète
   completer(x);
   fs.mkdirSync(dossier, { recursive: true });
   const branche = x.cwd ? brancheDe(x.cwd) : '';
@@ -384,7 +386,7 @@ function note(x, ecrire = true, relance = false) {
   const t = ['---', `titre: "Reprise — ${x.titre.replace(/"/g, '\'')}"`, 'type: reprise', `date: ${jour}`, `session: ${x.id}`, `cli_session: ${x.cli}`,
     `dossier: "${x.cwd}"`, `modele: ${x.modele}`, `tours: ${x.tours ?? 'n/a'}`, `contexte: ${x.ctx}`, `cout_usd: ${x.cout == null ? 'n/a' : x.cout.toFixed(2)}`, relance ? `relance: ${jour}` : `archivee: ${jour}`, '---',
     `# Reprise — ${x.titre}`, '',
-    relance ? `Note écrite le ${jour} par le hook \`poids-de-session\` : la session relit ${k(x.ctx)} jetons par tour et se relance, neuve, à partir de cette note. La session d'origine la complète (décisions, chiffres, pièges) avant de passer la main ; ${x.tours ?? 'n/a'} tours, ${$(x.cout)} aux prix publics.` : `Session archivée le ${jour} par \`/orch ranger\` après ${age(MAINTENANT - (x.creee || MAINTENANT))} de vie et ${x.tours ?? 'n/a'} tours (${k(x.ctx)} jetons de contexte, ${$(x.cout)} aux prix publics). État au rangement : ${x.etat}.`, '',
+    COMPACTION ? `Note mise à jour le ${jour} par le hook \`compaction\` : la session compacte sur place (elle ne passe pas la main). Cette note est la mémoire de référence après le compactage : le résumé y renvoie au lieu de tout recopier. ${k(x.ctx)} jetons relus par tour, ${x.tours ?? 'n/a'} tours, ${$(x.cout)} aux prix publics.` : relance ? `Note écrite le ${jour} par le hook \`poids-de-session\` : la session relit ${k(x.ctx)} jetons par tour et se relance, neuve, à partir de cette note. La session d'origine la complète (décisions, chiffres, pièges) avant de passer la main ; ${x.tours ?? 'n/a'} tours, ${$(x.cout)} aux prix publics.` : `Session archivée le ${jour} par \`/orch ranger\` après ${age(MAINTENANT - (x.creee || MAINTENANT))} de vie et ${x.tours ?? 'n/a'} tours (${k(x.ctx)} jetons de contexte, ${$(x.cout)} aux prix publics). État au rangement : ${x.etat}.`, '',
     '## Ce qui est fait', '', x.rapport ? `> ${x.rapport.replace(/\n+/g, '\n> ')}` : '- (aucun rapport de fin de tour)', '',
     ...(fait.length ? ['Étapes terminées :', ...fait.map((y) => `- [x] ${y.quoi}`), ''] : []),
     `Commits (${x.commits.length}) :`, ...(x.commits.length ? x.commits.map((c) => `- \`${c.sha}\` ${c.msg} — \`${(c.dossier || '').replace(MAISON, '~')}\`, branche \`${c.branche}\``) : ['- aucun commit fait par cette session']), '',
@@ -397,7 +399,7 @@ function note(x, ecrire = true, relance = false) {
     ...(x.detail ? ['', `Dernier état noté par l’app : ${x.detail}`] : []), '',
     '## Dernière demande reçue', '', '> ' + court(x.demande, 600), '',
     '## Comment reprendre', '',
-    ...(relance ? [`Prompt de la session neuve : « Lis ${fichier.replace(MAISON, '~')} et reprends là où elle s'arrête : vérifie d'abord l'état des fichiers et des commits, puis enchaîne sur « Ce qui reste à faire ». »`, ''] : []),
+    ...(relance && !COMPACTION ? [`Prompt de la session neuve : « Lis ${fichier.replace(MAISON, '~')} et reprends là où elle s'arrête : vérifie d'abord l'état des fichiers et des commits, puis enchaîne sur « Ce qui reste à faire ». »`, ''] : []),
     relance ? `1. Dans l’app : la session « ${x.titre} » reste ouverte avec tout son contexte (\`${x.id}\`).` : `1. Dans l’app : la session « ${x.titre} » est dans les archives ; la désarchiver (\`unarchive_session\` \`${x.id}\`) la rouvre avec tout son contexte.`,
     `2. En terminal : \`cd ${(x.cwd || '').replace(MAISON, '~')} && claude --resume ${x.cli}\`${branche ? ` (branche \`${branche}\`)` : ''}.`,
     '3. Plus léger : une session neuve avec pour seul brief cette note — le contexte repart de zéro au lieu de ' + k(x.ctx) + ' jetons.', ''];

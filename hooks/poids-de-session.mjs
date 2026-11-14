@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Hook UserPromptSubmit + PostToolUse : mesure ce qu'une session relit à chaque tour (le contexte
 // envoyé au modèle, lu dans l'usage du dernier tour du journal de session) et, au passage d'un palier,
-// rappelle en contexte la règle « une-session-trop-longue-se-relance-avec-une-note-de-reprise ».
+// rappelle en contexte la règle « compacter sur place, au bon moment, avec la note de reprise à jour » (12/11/2026 :
+// la relance en session neuve n'est plus que le dernier recours). Le déclenchement lui-même n'est pas possible depuis
+// un crochet : il passe par le seuil de compaction automatique (voir hooks/compaction.mjs) ou par /compact validé par l'utilisateur.
 // Une fois par palier et par session ; au palier fort, une notification part aussi sur le téléphone.
 // Ne bloque jamais. Mesure du 09/10 : la session PPA relisait ~780 000 jetons par tour.
 import fs from 'node:fs';
@@ -10,10 +12,10 @@ import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 const lireStdin = () => { try { return fs.readFileSync(0, 'utf8'); } catch { return ''; } };
 
-const AVERTIR = 200_000;   // la session coûte déjà cher : préparer la relance (mesure du 20/10 : 80 % du coût Opus est au-delà de 300 000)
-const RELANCER = 300_000;  // relancer à la fin de l'étape en cours (seuils recalculés le 20/10, voir la règle)
-const IMMEDIAT = 500_000;  // relancer tout de suite, sans finir l'étape (skill orchestrateur, section 5)
-const NOTE = 250_000;      // la note de reprise s'écrit d'elle-même (02/11 : une grosse session sur deux seulement en laissait une)
+const AVERTIR = 150_000;   // à compacter à la fin de l'étape : note mise à jour, commande donnée (mesure du 20/10 : 80 % du coût Opus est au-delà de 300 000 ; le 12/11, 202 000 en 30 min)
+const RELANCER = 300_000;  // compactage en retard : à la fin de l'étape, sans rien lancer de nouveau
+const IMMEDIAT = 500_000;  // compacter tout de suite ; la relance en session neuve seulement si le compactage ne suffit pas
+const NOTE = 150_000;      // la note de reprise s'écrit et se met à jour d'elle-même (02/11 : une grosse session sur deux seulement en laissait une)
 const RAPPEL_TOUS = 100_000; // au-delà, un nouveau rappel tous les 100 000 jetons de plus
 const ETAT = path.join(os.homedir(), '.cache', 'orchestration', 'poids-sessions');
 const JOURNAL = path.join(os.homedir(), '.cache', 'orchestration', 'poids-sessions.jsonl');
@@ -58,38 +60,41 @@ try {
   try { etat = JSON.parse(fs.readFileSync(fEtat, 'utf8')); } catch {}
   if (etat.dernier && contexte < etat.dernier - RAPPEL_TOUS) etat = { dernier: 0, notifie: false };
   const prochain = etat.dernier === 0 ? AVERTIR : etat.dernier + RAPPEL_TOUS;
-  // À 250 k, une fois : outils/ranger.mjs écrit la note (plan, commits, fichiers, reste à faire, prompt de reprise).
+  // À chaque rappel : outils/ranger.mjs écrit la note (plan, commits, fichiers, reste à faire) ; la compaction la réutilise.
   let note = '';
   const idApp = process.env.CLAUDE_CODE_HOST_SESSION_ID || '';
-  if (contexte >= NOTE && !etat.note && /^local_/.test(idApp)) {
-    try { note = execFileSync(process.execPath, [path.join(path.dirname(new URL(import.meta.url).pathname), '../outils/ranger.mjs'), 'relance', idApp],
+  if (contexte >= NOTE && contexte >= prochain && /^local_/.test(idApp)) {   // à chaque rappel : la note est réécrite, à jour
+    try { note = execFileSync(process.execPath, [path.join(path.dirname(new URL(import.meta.url).pathname), '../outils/ranger.mjs'), 'relance', idApp, '--compaction'],
       { timeout: 6000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split('\n').pop(); } catch {}
     if (note && fs.existsSync(note)) etat.note = note; else note = '';
   }
-  if (contexte < prochain && !note) { if (etat.note) fs.writeFileSync(fEtat, JSON.stringify(etat)); process.exit(0); }
+  if (contexte < prochain) { if (etat.note) fs.writeFileSync(fEtat, JSON.stringify(etat)); process.exit(0); }
 
   const k = Math.round(contexte / 1000);
   const fort = contexte >= RELANCER;
   const immediat = contexte >= IMMEDIAT;
+  const cheminNote = note || etat.note || '';
+  // La commande exacte que l'utilisateur valide d'un geste (le crochet ne peut pas la saisir à sa place). Le crochet PreCompact,
+  // s'il est installé, ajoute déjà les consignes complètes : cette version courte suffit alors.
+  const commande = `/compact Orchestration : garder le but et son critère de fin, chaque fille (id, modèle · effort, état), branches et commits, décisions et garde-fous de l'utilisateur, processus de fond${cheminNote ? `, et renvoyer à la note ${cheminNote} au lieu de tout recopier` : ''}`;
+  const regle = `Règle du skill orchestrateur (section 6, compacter sur place) : à la fin de l'étape en cours, ne lance rien de nouveau, vérifie que tout est commité, puis compacte`;
+  const manuel = `Si l'auto-compactage est réglé sur ce Mac (autoCompactWindow), il se déclenche seul ; sinon dis à l'utilisateur de valider cette commande d'un geste : ${commande}`;
   const texte = fort
-    ? `Poids de cette session : elle relit environ ${k} 000 jetons à chaque tour, ce qui vide vite le quota. Règle du skill orchestrateur (section 5) : à la fin de l'étape en cours, ne lance rien de nouveau ; écris une note de reprise (état chiffré, fichiers et commandes, traitements inachevés et comment les reprendre, décisions, prochaines étapes, ce qui attend l'utilisateur), commite, puis propose de continuer dans une session neuve où Opus orchestre et Sonnet relève.`
-    : `Poids de cette session : elle relit déjà environ ${k} 000 jetons à chaque tour. Garde les relevés, captures et gros fichiers dans des agents Sonnet qui rendent un résumé, et prépare la note de reprise : au-delà de 300 000, la relance avec note de reprise s'applique (skill orchestrateur, section 5).`;
-
-  const urgent = `Poids de cette session : elle relit environ ${k} 000 jetons à chaque tour, soit plus de 500 000 : chaque message coûte plusieurs fois ce qu'il coûterait dans une session neuve. Règle du skill orchestrateur (section 5) : relance TOUT DE SUITE, sans finir l'étape. Ne lance rien de nouveau ; écris la note de reprise${note ? ` (le code vient d'en écrire une : ${note}, complète-la)` : ''}, commite, et dis à l'utilisateur de repartir dans une session neuve avec le prompt de la section « Comment reprendre ».`;
-  const texteFinal = immediat ? urgent : note
-    ? `Poids de cette session : ~${k} 000 jetons relus par tour. Une note de reprise vient d'être écrite par le code : ${note}. À la fin de l'étape en cours : complète-la (décisions prises, chiffres avec leur source, pièges rencontrés, ce que la note automatique a mal dit), commite, puis dis à l'utilisateur en une ligne que la suite peut repartir dans une session neuve avec le prompt de la section « Comment reprendre ». Ne lance rien de nouveau avant.`
-    : texte;
+    ? `Poids de cette session : ~${k} 000 jetons relus par tour, le compactage est en retard. ${regle}. ${cheminNote ? `La note de reprise est à jour : ${cheminNote}. ` : ''}${manuel}`
+    : `Poids de cette session : ~${k} 000 jetons relus par tour. C'est le moment de compacter. Garde relevés, captures et gros fichiers dans des agents Sonnet qui rendent un résumé. ${regle}. ${cheminNote ? `La note de reprise vient d'être mise à jour : ${cheminNote}. ` : ''}${manuel}`;
+  const urgent = `Poids de cette session : ~${k} 000 jetons relus par tour, plus de 500 000 : chaque message coûte plusieurs fois ce qu'il coûterait compacté. Compacte TOUT DE SUITE, sans finir l'étape (${cheminNote ? `note à jour : ${cheminNote} ; ` : ''}${manuel}). Dernier recours seulement : si le compactage est impossible ou si le contexte reste au-dessus de 250 000 après lui, écris la note, commite et dis à l'utilisateur de repartir dans une session neuve avec le prompt de la section « Comment reprendre ».`;
+  const texteFinal = immediat ? urgent : texte;
   const evenement = entree.hook_event_name || (entree.prompt !== undefined ? 'UserPromptSubmit' : 'PostToolUse');
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: evenement, additionalContext: texteFinal } }));
 
   if (fort && !etat.notifie && NOTIFIER) {
     const titre = path.basename(entree.cwd || '') || 'session';
     // Détaché : la notification part même si le hook rend la main tout de suite.
-    spawn(NOTIFIER, [`Session ${titre} : ~${k} 000 jetons relus par tour, à relancer avec une note de reprise`, 'Session trop longue'], { detached: true, stdio: 'ignore' }).unref();
+    spawn(NOTIFIER, [`Session ${titre} : ~${k} 000 jetons relus par tour, à compacter`, 'Session lourde'], { detached: true, stdio: 'ignore' }).unref();
     etat.notifie = true;
   }
   etat.dernier = contexte;
   fs.writeFileSync(fEtat, JSON.stringify(etat));
-  fs.appendFileSync(JOURNAL, JSON.stringify({ ts: new Date().toISOString(), session, cwd: entree.cwd, contexte, palier: immediat ? 'immediat' : note ? 'note' : fort ? 'relancer' : 'avertir', note: note || undefined }) + '\n');
+  fs.appendFileSync(JOURNAL, JSON.stringify({ ts: new Date().toISOString(), session, cwd: entree.cwd, contexte, palier: immediat ? 'immediat' : fort ? 'retard' : 'compacter', note: note || undefined }) + '\n');
 } catch {}
 process.exit(0);

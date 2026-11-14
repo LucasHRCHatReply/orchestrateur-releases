@@ -21,6 +21,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import * as pboard from './pboard.mjs';
 import { famille, cout, compteur, PRIX } from './extraire.mjs';
+import * as intermodele from './intermodele.mjs';
 
 const DEPOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAISON = os.homedir();
@@ -36,7 +37,7 @@ export const hoteAutorise = (host, port = PORT) => [`127.0.0.1:${port}`, `localh
 const CLAUDE = process.env.ORCH_CLAUDE || 'claude';
 const VERSION_CACHE = 3;   // 3 : coût au modèle exact, sortie complète (02/11/2026)
 // L'empreinte du code servi : un serveur resté sur une ancienne version est remplacé à l'ouverture suivante.
-const CODE = ['bureau.mjs', 'bureau.html', 'pboard.mjs', 'pboard.html'].map((f) => Math.floor(fs.statSync(path.join(DEPOT, 'outils', f)).mtimeMs)).join(':');
+const CODE = ['bureau.mjs', 'bureau.html', 'pboard.mjs', 'pboard.html', 'intermodele.mjs'].map((f) => Math.floor(fs.statSync(path.join(DEPOT, 'outils', f)).mtimeMs)).join(':');
 
 const args = process.argv.slice(2);
 const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -290,6 +291,15 @@ export function donnees({ session, cli, dossier, moi } = {}) {
   return assembler({ chef, lignee, sessions, agents, parent, courante, maintenant });
 }
 
+// Les essais hors Claude (GPT, Gemini, Antigravity…) qui tombent dans la durée de cet environnement, à côté de ses sessions et agents.
+function horsClaudeDe(D) {
+  const L = [...(D.lignee || []), ...(D.sessions || []), ...(D.agents || [])];
+  const t = (x) => Date.parse(x || '') || 0;
+  const debuts = L.map((x) => t(x.debut)).filter(Boolean), fins = L.map((x) => t(x.fin)).filter(Boolean);
+  const de = (debuts.length ? Math.min(...debuts) : Date.now()) - 30 * 60000, a = Math.max(Date.now(), ...fins) + 60 * 60000;
+  return intermodele.pourBureau({ de, a: Math.min(a, Date.now() + 36e5), depot: DEPOT, maison: MAISON });
+}
+
 // Une transcription du terminal (sans fiche dans l'app) qui a lancé des agents.
 function donneesCli(cli, maintenant) {
   const d = dossierProjet(cli); if (!d) return { erreur: 'Transcription introuvable.' };
@@ -323,7 +333,7 @@ function assembler({ chef, lignee = [chef], sessions, agents, parent, courante, 
   const tous = [...lignee, ...sessions];
   const vivantes = sessions.filter((s) => !s.suite);   // une fille relancée compte une fois, sous sa dernière forme
   const groupes = (L) => L.reduce((o, x) => { const g = GROUPE[x.etat] || 'repos'; o[g] = (o[g] || 0) + 1; return o; }, {});
-  return {
+  const R = {
     date: new Date(maintenant).toISOString(), courante, terminal, parent,
     chef: { ...chef }, lignee, sessions, agents,
     totaux: { generations: lignee.length, sessions: sessions.length, taches: vivantes.length, relancees: sessions.length - vivantes.length, agents: agents.length,
@@ -334,6 +344,9 @@ function assembler({ chef, lignee = [chef], sessions, agents, parent, courante, 
       modelesSessions: parModele(vivantes), modelesAgents: parModele(agents) },
     phrase: phraseCalculee(chef, vivantes, agents, lignee.length),
   };
+  R.horsClaude = horsClaudeDe(R);
+  R.totaux.essais = R.horsClaude.essais.length; R.totaux.coutEssais = R.horsClaude.essais.reduce((a, e) => a + (e.cout_eur || 0), 0);
+  return R;
 }
 
 // La phrase de tête, calculée : ce que la lignée a lancé et pour quoi. Haiku peut la réécrire (voir `phrase`).
@@ -473,6 +486,7 @@ export function empreinteEnv(D) {
     h.update(st(path.join(d, `${s.cli}.jsonl`)));
     const a = path.join(d, s.cli, 'subagents'); h.update(st(a)); for (const f of fichiersAgents(a)) h.update(f + st(path.join(a, f)));
   }
+  h.update(intermodele.empreinteEssais({ depot: DEPOT, maison: MAISON }));   // un essai de plus ou de moins
   h.update(String(Math.floor(Date.now() / 60000)));   // les états « depuis 3 min » bougent seuls : au plus une minute de cache
   return h.digest('hex');
 }
@@ -503,6 +517,7 @@ function serveur() {
       if (u.pathname === '/' || u.pathname === '/bureau') return envoyer(res, 200, fs.readFileSync(page, 'utf8'), 'text/html; charset=utf-8');
       if (u.pathname === '/api/ping') return envoyer(res, 200, { ok: true, depot: DEPOT, pid: process.pid, code: CODE });
       if (u.pathname === '/api/envs') return envoyer(res, 200, environnements());
+      if (u.pathname === '/api/modeles') { const E = intermodele.lireEssais({ depot: DEPOT, maison: MAISON }); return envoyer(res, 200, { ...intermodele.comparer(E), noms: intermodele.NOMS, exemples: E.filter((e) => /^exemple/i.test(e.source)).length }); }
       const env = q.c ? `c:${q.c}` : `s:${q.s || ''}`;
       if (u.pathname === '/api/env') {
         const t0 = Date.now(); const avant = memo.get(env);
@@ -546,6 +561,7 @@ async function ouvrir(dossier, session, sansOuvrir) {
     `| **Sessions** | ${T.sessions}${T.relancees ? ` lancées, ${T.taches} tâches (${T.relancees} relances)` : ''}${T.taches ? ` — ${e(T.etatsSessions)}` : ''} |`,
     `| **Agents** | ${T.agents}${T.agents ? ` — ${e(T.etatsAgents)}` : ''} |`,
     `| **Coût** | ${$(T.cout)}${T.coutPartiel ? ' (au moins)' : ''}, dont agents ${$(T.coutAgents)} |`,
+    ...(T.essais ? [`| **Hors Claude** | ${T.essais} essai(s) pendant cette orchestration — ${Object.entries(D.horsClaude.essais.reduce((o, x) => (o[x.nomFournisseur] = (o[x.nomFournisseur] || 0) + 1, o), {})).map(([k, n]) => `${n} ${k}`).join(' · ')} |`] : []),
     `| **Page** | ${url} |`, '',
     `Calculé en ${((Date.now() - t0) / 1000).toFixed(1).replace('.', ',')} s, sans modèle. Les récits « voir plus » passent par Haiku 5.5 · low, en cache.`].join('\n'));
 }

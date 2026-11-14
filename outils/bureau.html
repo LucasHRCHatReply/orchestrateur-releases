@@ -9,14 +9,15 @@
   --fond: #f4f1ea; --sol: #ebe6db; --sol-ligne: #e2dccf; --carte: #fffdf8; --encre: #23201b; --doux: #6f675b; --trait: #ded7c8;
   --bureau: #c9a77c; --bureau-ombre: #a9865c; --ecran: #2c2f36; --peau: #f1c9a5;
   --haiku: #1f9e83; --sonnet: #e0743a; --opus: #7656d4; --fable: #c99a16; --autre: #8b8578;
+  --openai: #3a4a6b; --google: #2f8fe8; --antigravity: #d6409f;
   --actif: #1f9e5a; --bloque: #e0700f; --rouge: #d2453b; --fini: #3d7fd9; --repos: #8b8578;
   --ombre: 0 1px 2px rgba(40,30,10,.06), 0 6px 20px rgba(40,30,10,.07);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --fond: #17161a; --sol: #1d1c21; --sol-ligne: #242329; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b;
-  --bureau: #7d6247; --bureau-ombre: #5e4935; --ecran: #0e0f12; --peau: #d9b08c; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  --bureau: #7d6247; --bureau-ombre: #5e4935; --ecran: #0e0f12; --peau: #d9b08c; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35); --openai: #8ea3d4;
 } }
-:root[data-theme="dark"] { --fond: #17161a; --sol: #1d1c21; --sol-ligne: #242329; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b;
+:root[data-theme="dark"] { --openai: #8ea3d4; --fond: #17161a; --sol: #1d1c21; --sol-ligne: #242329; --carte: #222127; --encre: #f0ece4; --doux: #a39d92; --trait: #35333b;
   --bureau: #7d6247; --bureau-ombre: #5e4935; --ecran: #0e0f12; --peau: #d9b08c; --ombre: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35); }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--fond); color: var(--encre); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
@@ -136,6 +137,27 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowra
 .modele { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; font-size: 13px; }
 .modele i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
+/* ── Hors Claude : les essais confiés à GPT, Gemini, Antigravity */
+.pole.hors { grid-column: 1 / -1; }
+.pole.hors header { flex-wrap: wrap; }
+.pole.hors header strong { overflow: visible; }
+.pole.hors header em { color: var(--doux); white-space: normal; }
+.fourn { display: inline-block; font-size: 10.5px; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 99px; background: var(--c, var(--autre)); color: #fff; white-space: nowrap; }
+.poste.essai { width: 92px; }
+.poste.essai .nom { display: block; margin-top: 2px; }
+.poste.essai .detail { display: block; font-size: 10.5px; color: var(--doux); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poste .ex { position: absolute; top: 0; right: 0; font-size: 9px; font-weight: 700; background: var(--bloque); color: #fff; border-radius: 99px; padding: 0 5px; }
+.avert { border: 1px dashed var(--bloque); color: var(--bloque); border-radius: 10px; padding: 6px 10px; font-size: 13px; margin: 0 0 14px; }
+.comp h3 { margin: 18px 0 6px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.comp h3 small { color: var(--doux); font-weight: 400; }
+.barre-r { display: inline-block; width: 60px; height: 8px; border-radius: 4px; background: var(--sol-ligne); vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.barre-r i { display: block; height: 100%; background: var(--actif); }
+.cpt { font-size: 12px; color: var(--doux); white-space: nowrap; }
+.cpt b { color: var(--encre); font-weight: 600; }
+.frise .agent-t.essai { top: 12px; height: 8px; border-radius: 4px; opacity: .9; min-width: 5px; }
+.frise .rang.hors { cursor: default; }
+@media (max-width: 640px) { .poste.essai { width: 78px; } .comp .table { font-size: 12px; } }
+
 /* ── Bulle au survol */
 #bulle { position: fixed; z-index: 50; pointer-events: none; background: var(--encre); color: var(--fond); border-radius: 10px; padding: 8px 11px; font-size: 12.5px; max-width: 320px; box-shadow: var(--ombre); opacity: 0; transition: opacity .1s; }
 #bulle.vu { opacity: 1; }
@@ -201,6 +223,7 @@ aside a { color: inherit; }
     <button data-mode="bureau" title="Chacun à son poste : la couleur du pull dit le modèle, l'animation dit l'état">Bureau</button>
     <button data-mode="liste" title="Toutes les sessions et tous les agents en tableaux">Liste</button>
     <button data-mode="temps" title="Qui a travaillé quand : une barre par session, un trait par agent">Temps</button>
+    <button data-mode="comparer" title="Comparer les modèles par type de tâche : coût, durée, réussite, compte par compte">Comparer</button>
   </div>
   <div class="ajour" id="ajour" title="Relu toutes les 5 s, sans modèle : rien n’est recalculé tant qu’aucun fichier n’a bougé"><b></b><span>…</span></div>
 </header>
@@ -235,6 +258,14 @@ const ETATS = {
 const ORDRE = { actif: 0, bloque: 1, repos: 2, fini: 3 };
 const G = (x) => ETATS[x.etat]?.g || 'repos';
 const FAM = (m = '') => ['haiku', 'sonnet', 'opus', 'fable'].find((f) => m.includes(f)) || 'autre';
+// La couleur d'un poste : le modèle pour Claude, le fournisseur pour un essai hors Claude.
+const COUL = (x) => x.genre === 'essai' ? (['openai', 'google', 'antigravity'].includes(x.fournisseur) ? x.fournisseur : 'autre') : FAM(x.modele);
+const euros = (n) => n == null ? 'n/a' : `${n.toFixed(n > 0 && n < 0.1 ? 4 : 2).replace('.', ',')} €`;
+// Rien ne se paie à l'appel : un coût en euros n'est qu'un ÉQUIVALENT API (ce que ça aurait coûté), pas une dépense. Une ligne en voie API est une anomalie.
+const equiv = (x) => x.cout_eur != null ? `≈ ${euros(x.cout_eur)}` : x.quota_consomme != null ? `${pct(x.quota_consomme)} quota` : 'n/a';
+const voieLib = (v) => v === 'api' ? '<span style="color:var(--rouge);font-weight:600" title="Payé à l’appel : ne devrait jamais arriver, tout doit passer par les abonnements">⚠ API</span>' : v === 'abonnement' ? 'abonnement' : 'n/a';
+const pct = (n) => n == null ? 'n/a' : `${Math.round(n * 100)} %`;
+const secondes = (s) => s == null ? 'n/a' : s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
 const NOM = { haiku: 'Haiku', sonnet: 'Sonnet', opus: 'Opus', fable: 'Fable', autre: 'Autre' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const dollars = (n) => n == null ? 'n/a' : `${n.toFixed(n > 0 && n < 0.1 ? 4 : 2).replace('.', ',')} $`;
@@ -242,16 +273,16 @@ const k = (n) => n == null ? 'n/a' : n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(
 const duree = (a, b) => { if (!a || !b) return 'n/a'; const m = Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 60000)); return m < 1 ? '< 1 min' : m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${Math.floor(m / 1440)} j ${Math.floor((m % 1440) / 60)} h`; };
 const ilya = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.floor(m / 60)} h` : `il y a ${Math.floor(m / 1440)} j`; };
 const heure = (t) => t ? new Date(t).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'n/a';
-const me = (x) => `${NOM[FAM(x.modele)]}${x.effort ? ` · ${x.effort}` : ''}`;
+const me = (x) => x.genre === 'essai' ? `${x.nomFournisseur}${x.modele ? ` · ${x.modele}` : ''}` : `${NOM[FAM(x.modele)]}${x.effort ? ` · ${x.effort}` : ''}`;
 const pl = (n, s, p = s + 's') => `${n} ${n > 1 ? p : s}`;
 const q = () => { const u = new URLSearchParams(); if (etat.c) u.set('c', etat.c); else u.set('s', etat.s); if (etat.moi) u.set('moi', etat.moi); if (etat.d) u.set('d', etat.d); return u; };
 const tous = () => [...D.lignee, ...D.sessions, ...D.agents];
-const trouver = (cle) => tous().find((x) => x.cle === cle);
+const trouver = (cle) => tous().find((x) => x.cle === cle) || (D.horsClaude?.essais || []).find((x) => x.cle === cle);
 const derniere = () => D.lignee.length;
 
 // ── Les petits personnages : la couleur du pull dit le modèle, l'animation dit l'état.
 function perso(x) {
-  const g = G(x), f = FAM(x.modele), id = x.cle.replace(/\W/g, '');
+  const g = G(x), f = COUL(x), id = x.cle.replace(/\W/g, '');
   const bulle = x.etat === 'attend' ? ['?', 'var(--bloque)'] : x.etat === 'interrompue' ? ['!', 'var(--rouge)'] : x.etat === 'à relire' ? ['✎', 'var(--fini)'] : null;
   const ecran = g === 'actif' ? '<g class="ligne"><rect x="3" y="4" width="30" height="1.6" fill="#7ee2b8"/><rect x="3" y="8" width="22" height="1.6" fill="#7ee2b8" opacity=".7"/><rect x="3" y="12" width="28" height="1.6" fill="#7ee2b8" opacity=".5"/></g>'
     : g === 'fini' && x.etat !== 'rangée' ? '<path d="M7 9 l3.5 3.5 l7-7" stroke="#8cc4ff" stroke-width="2.2" fill="none" stroke-linecap="round"/>' : x.etat === 'rangée' ? '' : '<rect x="3" y="7" width="18" height="1.4" fill="#555"/>';
@@ -267,9 +298,11 @@ function perso(x) {
     ${g === 'repos' ? '<text class="zz" x="52" y="10" font-size="9" font-weight="700" fill="var(--doux)">z z</text>' : ''}
   </svg>`;
 }
+const posteEssai = (x) => `<button class="poste essai" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}" style="--c:var(--${COUL(x)})">${perso(x)}${x.exemple ? '<span class="ex" title="Essai d’exemple, pas une mesure">exemple</span>' : ''}<span class="nom"><span class="fourn">${esc(x.nomFournisseur)}</span></span><span class="detail">${esc(x.modele || x.type)}</span><span class="detail">${esc(x.type)} · ${x.cout_eur != null ? euros(x.cout_eur) : x.voie === 'abonnement' ? 'forfait' : 'n/a'}</span></button>`;
 const poste = (x, taille = '') => `<button class="poste ${taille}" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}">${perso(x)}${x.relances ? `<span class="relances">↻${x.relances}</span>` : ''}${x.generation && x.generation < derniere() && taille !== 'grand' ? `<span class="gen">G${x.generation}</span>` : ''}<span class="nom">${esc(x.titre)}</span></button>`;
 function bulleDe(x) {
   const e = ETATS[x.etat] || {};
+  if (x.genre === 'essai') return `<b>${esc(x.titre)}</b>${esc(x.nomFournisseur)}${x.modele ? ` · ${esc(x.modele)}` : ''} — ${x.voie === 'abonnement' ? 'abonnement' : x.voie === 'api' ? 'API' : 'voie inconnue'}${x.exemple ? ' · <i>exemple</i>' : ''}<br>${x.etat === 'finie' ? 'Réussi' : 'À relire (qualité ou conformité sous le seuil)'} · ${esc(x.type)} · ${x.voie === 'api' ? '⚠ API' : x.cout_eur != null ? `≈ ${euros(x.cout_eur)} équivalent API` : x.quota_consomme != null ? `${pct(x.quota_consomme)} du quota` : 'coût n/a'} · ${secondes(x.duree_s)}<br>Compte : ${esc(x.compte)}`;
   const rel = x.relances ? `<br>Relancée ${pl(x.relances, 'fois', 'fois')} : coût et agents des versions précédentes comptés à part.` : '';
   return `<b>${esc(x.titre)}</b>${esc(e.l || x.etat)} — ${esc(e.x || '')}${x.question ? `<br>❓ ${esc(x.question.slice(0, 160))}` : ''}<br>${x.genre === 'agent' ? 'Agent' : x.role === 'chef' ? `Chef, génération ${x.generation}` : 'Session'} · ${esc(me(x))} · ${dollars(x.cout)} · ${k(x.ctx)} jetons · ${duree(x.debut, x.fin)}${rel}`;
 }
@@ -298,6 +331,16 @@ const trier = (L) => [...L].sort((a, b) => ORDRE[G(a)] - ORDRE[G(b)] || (b.fin |
 // Les tâches : la dernière forme de chaque fille de premier niveau d'une génération.
 const taches = (gen) => D.sessions.filter((s) => !s.suite && s.profondeur === 1 && (gen == null || s.generation === gen));
 
+// Le pôle « Hors Claude » : les essais confiés à d'autres modèles pendant cette orchestration, le fournisseur bien lisible.
+function poleEssais() {
+  const E = D.horsClaude?.essais || []; if (!E.length) return '';
+  const L = filtrer([...E].sort((a, b) => b.date.localeCompare(a.date)));
+  if (!L.length) return '';
+  const ouvert = etat.ouverts.has('essais'), vus = ouvert ? L : L.slice(0, 12);
+  const par = Object.entries(L.reduce((o, x) => (o[x.nomFournisseur] = (o[x.nomFournisseur] || 0) + 1, o), {})).map(([f, n]) => `${n} ${f}`).join(' · ');
+  return `<section class="pole hors" style="--c:var(--doux)"><header><strong>Hors Claude</strong><em>${pl(L.length, 'essai')} · ${esc(par)}${L.every((x) => x.exemple) ? ' · exemples' : ''}</em></header>
+    <div class="postes">${vus.map(posteEssai).join('')}${L.length > 12 ? (ouvert ? '<button class="tas" data-replier="essais" title="Replier">▴</button>' : `<button class="tas" data-deplier="essais" title="Voir les ${L.length - 12} autres"><b>+${L.length - 12}</b></button>`) : ''}</div></section>`;
+}
 function vueBureau() {
   const chef = D.chef;
   const n = derniere();
@@ -316,12 +359,13 @@ function vueBureau() {
   return `<div class="sol"><div class="estrade">${poste(chef, 'grand')}</div>
     <div class="poles">${agentsChef.length ? `<section class="pole" style="--c:var(--${FAM(chef.modele)})"><header><strong>Agents du chef</strong><em style="color:var(--doux)">${pl(agentsChef.length, 'agent')}</em></header><div class="postes">${agentsEnTas(agentsChef, 'chef')}</div></section>` : ''}${sol.map(pole).join('')}</div>
     ${!sol.length && !agentsChef.length ? `<div class="vide">${etat.groupe ? `Rien « ${GROUPES[etat.groupe].l.toLowerCase()} » à cet instant.` : 'Aucune session ni aucun agent lancé.'}</div>` : ''}
-    ${anciennes}</div>`;
+    ${anciennes}
+    ${poleEssais()}</div>`;
 }
 
 // ── Liste : sessions par génération (la plus récente d'abord), puis agents.
 const cEtat = (x) => { const e = ETATS[x.etat] || {}; return `<span class="etat" title="${esc(e.x)}"><i style="background:${GROUPES[G(x)].c}"></i>${esc(e.l || x.etat)}</span>`; };
-const cMod = (x) => `<span class="modele" title="Modèle et effort réellement utilisés"><i style="background:var(--${FAM(x.modele)})"></i>${esc(me(x))}</span>`;
+const cMod = (x) => `<span class="modele" title="Modèle et effort réellement utilisés"><i style="background:var(--${COUL(x)})"></i>${esc(me(x))}</span>`;
 function vueListe() {
   const nA = (id) => D.agents.filter((a) => a.proprietaire === id).length;
   const ligne = (s, retrait) => `<tr class="ligne" data-cle="${esc(s.cle)}" data-bulle="${esc(s.cle)}"><td class="titre-cell" style="padding-left:${12 + retrait * 18}px">${s.role === 'chef' ? '★ ' : retrait ? '↳ ' : ''}${s.suite ? '<span title="Relancée : voir la version suivante">↻ </span>' : ''}${esc(s.titre)}</td><td>${cEtat(s)}</td><td>${cMod(s)}</td><td class="n">${dollars(s.cout)}</td><td class="n">${k(s.ctx)}</td><td class="n">${duree(s.debut, s.fin)}</td><td class="n">${nA(s.id) || ''}</td></tr>`;
@@ -335,6 +379,12 @@ function vueListe() {
     <section class="section" id="s-agents"><h2>Agents${etat.pour ? ` <button class="voir-tout" data-pour="" style="font-size:12px;border:1px solid var(--trait);background:var(--carte);border-radius:99px;padding:1px 9px">pour « ${esc(titreS(etat.pour).slice(0, 40))} » ✕</button>` : ''}</h2>
     <div class="table"><table><thead><tr><th>Agent</th><th>Pour</th><th>État</th><th>Modèle</th><th>Coût</th><th>Contexte</th><th>Durée</th></tr></thead><tbody>
     ${A.map((a) => `<tr class="ligne" data-cle="${esc(a.cle)}" data-bulle="${esc(a.cle)}"><td class="titre-cell">${esc(a.titre)}</td><td class="titre-cell" style="color:var(--doux);font-size:13px">${esc(titreS(a.proprietaire))}</td><td>${cEtat(a)}</td><td>${cMod(a)}</td><td class="n">${dollars(a.cout)}</td><td class="n">${k(a.ctx)}</td><td class="n">${duree(a.debut, a.fin)}</td></tr>`).join('') || '<tr><td colspan="7" class="vide">Aucun.</td></tr>'}
+    </tbody></table></div></section>${sectionEssais()}`;
+}
+function sectionEssais() {
+  const E = filtrer([...(D.horsClaude?.essais || [])]).sort((a, b) => b.date.localeCompare(a.date)); if (!E.length) return '';
+  return `<section class="section" id="s-essais"><h2>Hors Claude <small style="color:var(--doux);font-weight:400">travaux confiés à d’autres modèles pendant cette orchestration</small></h2><div class="table"><table><thead><tr><th>Tâche</th><th>Fournisseur · modèle</th><th>Voie</th><th title="Équivalent API, pas une dépense : tout passe par les abonnements">Équivalent API</th><th>Durée</th><th title="A suivi la consigne">Conformité</th><th>Qualité</th><th>Compte</th></tr></thead><tbody>
+    ${E.map((x) => `<tr class="ligne" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}"><td class="titre-cell">${x.exemple ? '<span class="fourn" style="--c:var(--bloque);margin-right:6px">exemple</span>' : ''}${esc(x.titre)}</td><td><span class="fourn" style="--c:var(--${COUL(x)});margin-right:6px">${esc(x.nomFournisseur)}</span>${esc(x.modele)}</td><td>${voieLib(x.voie)}</td><td class="n" title="Équivalent API : ce que ça aurait coûté, pas payé">${equiv(x)}</td><td class="n">${secondes(x.duree_s)}</td><td class="n">${pct(x.conformite)}</td><td class="n">${pct(x.qualite)}</td><td>${esc(x.compte)}</td></tr>`).join('')}
     </tbody></table></div></section>`;
 }
 
@@ -345,15 +395,16 @@ function vueTemps() {
   const maintenant = Date.parse(D.date) || Date.now();
   const fin = (x) => G(x) === 'actif' ? maintenant : Math.max(t(x.fin), t(x.debut));
   const L = [...D.lignee, ...D.sessions.filter((s) => !s.suite)];
-  const t0 = Math.min(...[...L, ...D.agents].map((x) => t(x.debut)).filter(Boolean));
-  const t1 = Math.max(...L.map(fin), ...D.agents.map((a) => G(a) === 'actif' ? maintenant : t(a.fin)));   // jusqu’à maintenant seulement si quelqu’un travaille
+  const E = filtrer(D.horsClaude?.essais || []);
+  const t0 = Math.min(...[...L, ...D.agents, ...E].map((x) => t(x.debut)).filter(Boolean));
+  const t1 = Math.max(...L.map(fin), ...D.agents.map((a) => G(a) === 'actif' ? maintenant : t(a.fin)), ...E.map((e) => t(e.fin)));   // jusqu’à maintenant seulement si quelqu’un travaille
   if (!isFinite(t0)) return '<div class="vide">Pas encore de dates à placer.</div>';
   const pc = (v) => `${((v - t0) / Math.max(1, t1 - t0) * 100).toFixed(3)}%`;
   const larg = (a, b) => `${(Math.max(0, b - a) / Math.max(1, t1 - t0) * 100).toFixed(3)}%`;
   const pas = [15, 30, 60, 120, 180, 360, 720, 1440, 2880].map((m) => m * 60000).find((p) => (t1 - t0) / p <= 9) || 5760 * 60000;
   const ticks = []; for (let v = Math.ceil(t0 / pas) * pas; v <= t1; v += pas) ticks.push(v);
   const etiquette = (v) => new Date(v).toLocaleString('fr-FR', pas >= 1440 * 60000 ? { day: '2-digit', month: '2-digit' } : pas >= 360 * 60000 ? { day: '2-digit', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
-  const barre = (x) => `<div class="barre-t ${G(x) === 'actif' ? 'vif' : ''}" style="left:${pc(t(x.debut) || t0)};width:${larg(t(x.debut) || t0, fin(x))};--m:var(--${FAM(x.modele)});--c:${GROUPES[G(x)].c}"></div>`;
+  const barre = (x) => `<div class="barre-t ${G(x) === 'actif' ? 'vif' : ''}" style="left:${pc(t(x.debut) || t0)};width:${larg(t(x.debut) || t0, fin(x))};--m:var(--${COUL(x)});--c:${GROUPES[G(x)].c}"></div>`;
   const traits = (id) => filtrer(D.agents.filter((a) => a.proprietaire === id)).map((a) => `<div class="agent-t ${G(a) === 'actif' ? 'vif' : ''}" data-cle="${esc(a.cle)}" data-bulle="${esc(a.cle)}" style="left:${pc(t(a.debut) || t0)};width:${larg(t(a.debut) || t0, G(a) === 'actif' ? maintenant : t(a.fin))};--m:var(--${FAM(a.modele)})"></div>`).join('');
   const decor = `${D.lignee.slice(1).map((g) => `<div class="coupe" style="left:${pc(t(g.debut))}" title="Génération ${g.generation}"></div>`).join('')}${t1 >= maintenant - 60000 ? `<div class="maintenant" style="left:${pc(maintenant)}" title="Maintenant"></div>` : ''}`;
   const rang = (x, nom, gen) => `<div class="rang ${gen ? 'gen' : ''}" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}"><div class="nom">${nom}</div><div class="piste">${decor}${barre(x)}${traits(x.id)}</div></div>`;
@@ -363,9 +414,33 @@ function vueTemps() {
     const S = trier(filtrer(D.sessions.filter((s) => !s.suite && s.generation === g.generation))).sort((a, b) => t(a.debut) - t(b.debut));
     for (const s of S) rangs.push(rang(s, `${'&nbsp;'.repeat(2 * Math.max(0, s.profondeur - 1))}↳ ${esc(s.titre)}${s.relances ? ` <small>↻${s.relances}</small>` : ''}`));
   }
-  const legende = ['haiku', 'sonnet', 'opus', 'fable'].filter((f) => [...L, ...D.agents].some((x) => FAM(x.modele) === f)).map((f) => `<span><i style="background:var(--${f})"></i>${NOM[f]}</span>`).join('');
+  // Hors Claude : une rangée par fournisseur, un trait par essai (largeur = durée, au moins un point).
+  for (const f of [...new Set(E.map((e) => e.fournisseur))]) {
+    const Lf = E.filter((e) => e.fournisseur === f);
+    rangs.push(`<div class="rang hors"><div class="nom"><span class="fourn" style="--c:var(--${COUL(Lf[0])})">${esc(Lf[0].nomFournisseur)}</span> <small>${pl(Lf.length, 'essai')}</small></div><div class="piste">${decor}${Lf.map((e) => `<div class="agent-t essai" data-cle="${esc(e.cle)}" data-bulle="${esc(e.cle)}" style="cursor:pointer;left:${pc(t(e.debut))};width:${larg(t(e.debut), t(e.fin))};--m:var(--${COUL(e)})"></div>`).join('')}</div></div>`);
+  }
+  const legende = ['haiku', 'sonnet', 'opus', 'fable'].filter((f) => [...L, ...D.agents].some((x) => FAM(x.modele) === f)).map((f) => `<span><i style="background:var(--${f})"></i>${NOM[f]}</span>`).join('')
+    + ['openai', 'google', 'antigravity'].filter((f) => E.some((e) => e.fournisseur === f)).map((f) => `<span><i style="background:var(--${f})"></i>${esc(E.find((e) => e.fournisseur === f).nomFournisseur)}</span>`).join('');
   return `<section class="frise" style="--g:clamp(150px, 28%, 300px)"><div class="axe">${ticks.map((v) => `<span style="left:${pc(v)}">${etiquette(v)}</span>`).join('')}</div>${rangs.join('')}
     <div class="legende">${legende}<span>bord : état</span><span>trait fin : un agent</span><span>pointillés : relance de l’orchestration</span><span style="color:var(--actif)">│ maintenant</span></div></section>`;
+}
+
+// ── Comparer les modèles : par type de tâche, une ligne par fournisseur · modèle · voie ; les deux comptes côte à côte.
+let M = null;
+async function chargerModeles() { try { M = await (await fetch('/api/modeles')).json(); } catch { M = { erreur: 'Le serveur local ne répond plus : relancer /sessiondesk.' }; } if (etat.mode === 'comparer') rendre(); }
+function vueComparer() {
+  if (!M) { chargerModeles(); return '<div class="vide">Lecture des essais…</div>'; }
+  if (M.erreur) return `<div class="vide">${esc(M.erreur)}</div>`;
+  if (!M.total) return '<div class="vide">Aucun essai hors Claude pour l’instant. Ils viennent de <code>outils/bancs/intermodele/essais.jsonl</code>, de <code>~/.cache/orchestration/intermodele/*.jsonl</code> et de ce que les comptes ont partagé (<code>perfs/&lt;compte&gt;/intermodele.jsonl</code>).</div>';
+  const nom = (f) => M.noms[f] || f;
+  const taux = (L) => L.jugés ? `<span class="barre-r"><i style="width:${Math.round(100 * L.reussis / L.jugés)}%"></i></span>${L.reussis}/${L.jugés}` : '<span style="color:var(--doux)">non jugé</span>';
+  const cpt = (L) => Object.entries(L.parCompte).map(([c, v]) => `<span class="cpt" title="Compte ${esc(c)} : ${v.n} essai(s), coût moyen ${euros(v.coutMoyen)}, durée médiane ${secondes(v.dureeMediane)}"><b>${esc(c)}</b> ${v.n}${v.jugés ? ` (${v.reussis}/${v.jugés})` : ''}</span>`).join(' · ');
+  const nApi = M.types.reduce((a, T) => a + T.lignes.filter((L) => L.voie === 'api').reduce((b, L) => b + L.n, 0), 0);
+  return `<section class="comp">${nApi ? `<div class="avert" style="color:var(--rouge);border-color:var(--rouge)">⚠ ${pl(nApi, 'essai')} en voie API (payée à l’appel). Tout devrait passer par les abonnements : à vérifier.</div>` : ''}${M.exemples ? `<div class="avert">${M.exemples} essai${M.exemples > 1 ? 's' : ''} d’exemple dans ces chiffres (source « exemple ») : ce n’est pas une mesure.</div>` : ''}
+    <p class="phrase">${pl(M.total, 'essai')} sur ${pl(M.comptes.length, 'compte')} (${M.comptes.map(esc).join(', ')}). <b>Réussi</b> = qualité ≥ 70 % et conformité ≥ 50 % quand elles sont données ; un essai non jugé ne compte ni pour ni contre. Triés du plus réussi au moins cher. Les euros sont un <b>équivalent API</b> (ce que ça aurait coûté), jamais une dépense : tout est payé par les abonnements.</p>
+    ${M.types.map((T) => `<h3>${esc(T.type)} <small>${pl(T.n, 'essai')}</small></h3><div class="table"><table><thead><tr><th>Fournisseur · modèle</th><th>Voie</th><th>Essais</th><th>Réussite</th><th>Qualité</th><th title="Équivalent API moyen : ce que ça aurait coûté, pas une dépense">Équiv. API moyen</th><th>Quota</th><th>Durée médiane</th><th>Par compte (essais, réussis/jugés)</th></tr></thead><tbody>
+      ${T.lignes.map((L) => `<tr><td><span class="fourn" style="--c:var(--${['openai', 'google', 'antigravity'].includes(L.fournisseur) ? L.fournisseur : 'autre'})">${esc(nom(L.fournisseur))}</span> ${esc(L.modele)}</td><td>${voieLib(L.voie)}</td><td class="n">${L.n}</td><td class="n">${taux(L)}</td><td class="n">${pct(L.qualiteMoyenne)}</td><td class="n">${L.coutMoyen == null ? 'n/a' : `≈ ${euros(L.coutMoyen)}`}</td><td class="n">${pct(L.quotaMoyen)}</td><td class="n">${secondes(L.dureeMediane)}</td><td>${cpt(L)}</td></tr>`).join('')}
+    </tbody></table></div>`).join('')}</section>`;
 }
 
 function rendre() {
@@ -388,11 +463,13 @@ function rendre() {
       <span title="Coût de toute la lignée aux prix publics, agents compris (${dollars(T.coutAgents)} pour les agents)"><b>${T.coutPartiel ? '≥ ' : ''}${dollars(T.cout)}</b> coût total</span>
       <button data-mode="liste" title="Sessions lancées, relances comprises">${pl(T.sessions, 'session')}${T.relancees ? ` (${T.relancees} ↻)` : ''}</button>
       <button data-mode="liste" data-ancre="s-agents" title="Agents lancés par toute la lignée">${pl(T.agents, 'agent')}</button>
+      ${(D.horsClaude?.essais.length) ? `<button data-mode="liste" data-ancre="s-essais" title="Travaux confiés à d’autres modèles que Claude pendant cette orchestration"><b>${D.horsClaude.essais.length}</b> essai${D.horsClaude.essais.length > 1 ? 's' : ''} hors Claude</button>` : ''}
+      ${(D.horsClaude?.horsClaude) ? `<button data-mode="comparer" title="Tous les essais hors Claude, par type de tâche">comparer les modèles (${D.horsClaude.horsClaude} essais)</button>` : ''}
       ${T.generations > 1 ? `<span title="La même orchestration, relancée dans une session neuve quand elle devenait trop lourde"><b>${T.generations}</b> générations</span>` : ''}
       <button data-cle="${esc(chef.cle)}" title="Jetons relus au dernier tour par le chef — au-delà de 300 k, relancer coûte moins"><b>${k(chef.ctx)}</b> contexte chef</button>
     </div>
     ${bloques.length && etat.mode === 'bureau' && !etat.groupe ? `<section class="bloques"><h2 title="${esc(GROUPES.bloque.x)}">À débloquer</h2>${bloques.map((x) => `<button class="bloque" data-cle="${esc(x.cle)}" data-bulle="${esc(x.cle)}">${perso(x)}<div><strong>${esc(x.titre)}</strong><small>${esc(x.question || (ETATS[x.etat]?.x) || '')}</small></div></button>`).join('')}</section>` : ''}
-    ${annonce ? `<div class="annonce">${annonce}</div>` : ''}${etat.mode === 'liste' ? vueListe() : etat.mode === 'temps' ? vueTemps() : vueBureau()}`;
+    ${annonce ? `<div class="annonce">${annonce}</div>` : ''}${etat.mode === 'liste' ? vueListe() : etat.mode === 'temps' ? vueTemps() : etat.mode === 'comparer' ? vueComparer() : vueBureau()}`;
   document.querySelectorAll('.modes button').forEach((b) => b.classList.toggle('actif', b.dataset.mode === etat.mode));
 }
 
@@ -401,6 +478,7 @@ async function ouvrirPanneau(cle, forcer) {
   const x = trouver(cle); if (!x) return;
   const p = document.getElementById('panneau'), e = ETATS[x.etat] || {};
   p.dataset.cle = cle;
+  if (x.genre === 'essai') return panneauEssai(x, p);
   const prop = x.genre === 'agent' ? tous().find((s) => s.id === x.proprietaire) : null;
   const nAg = x.genre === 'session' ? D.agents.filter((a) => a.proprietaire === x.id).length : 0;
   const avant = x.devanciere && trouver(`s:${x.devanciere}`), apres = x.suite && trouver(`s:${x.suite}`);
@@ -433,6 +511,26 @@ async function ouvrirPanneau(cle, forcer) {
   const zone = document.getElementById('recit'); if (!zone || p.dataset.cle !== cle) return;
   zone.innerHTML = r.erreur ? `<p class="attente">${esc(r.erreur)}</p>` : `<h3>Fait</h3><p>${esc(r.fait)}</p><h3>Rendu</h3><p>${esc(r.rendu)}</p><h3>Reste</h3><p>${esc(r.reste)}</p>
     <div class="pied"><span title="Écrit par Haiku 5.5 en effort faible sur un extrait de ${r.caracteres ?? '?'} caractères ; gardé tant que l’état ne change pas">${r.cache ? `En cache · 0 $` : `Haiku · ${dollars(r.cout)} · ${(r.ms / 1000).toFixed(1).replace('.', ',')} s`}</span><button data-refaire="${esc(cle)}">Refaire</button></div>`;
+}
+function panneauEssai(x, p) {
+  p.innerHTML = `<button class="fermer" title="Fermer (Échap)">✕</button>
+    <div class="etat"><i style="background:${x.etat === 'finie' ? 'var(--fini)' : 'var(--fini)'}"></i>${x.etat === 'finie' ? 'Réussi' : 'À relire'} · essai hors Claude${x.exemple ? ' · <b style="color:var(--bloque)">exemple, pas une mesure</b>' : ''}</div>
+    <h2>${esc(x.titre)}</h2>
+    <p><span class="fourn" style="--c:var(--${COUL(x)});font-size:13px;padding:3px 10px">${esc(x.nomFournisseur)}</span> ${esc(x.modele)}</p>
+    <dl class="faits">
+      <dt>Type de tâche</dt><dd>${esc(x.type)}</dd>
+      <dt>Voie</dt><dd>${x.voie === 'abonnement' ? 'Abonnement (forfait, pas de facture par appel)' : x.voie === 'api' ? '<b style="color:var(--rouge)">⚠ API payée à l’appel : ne devrait pas arriver</b>' : 'non précisée'}</dd>
+      <dt>Équivalent API</dt><dd title="Ce que ça aurait coûté à l’appel, pas ce qui est payé">${x.cout_eur != null ? `≈ ${euros(x.cout_eur)} (non payé)` : 'n/a'}${x.quota_consomme != null ? ` · ${pct(x.quota_consomme)} du quota de la période` : ''}</dd>
+      <dt>Durée</dt><dd>${secondes(x.duree_s)}</dd>
+      <dt>Conformité</dt><dd title="A-t-il suivi la consigne (format, périmètre) ?">${pct(x.conformite)}</dd>
+      <dt>Qualité</dt><dd title="Note de qualité du résultat">${pct(x.qualite)}</dd>
+      <dt>Quand</dt><dd>${heure(Date.parse(x.date))}</dd>
+      <dt>Compte</dt><dd>${esc(x.compte)}</dd>
+      <dt>Source</dt><dd>${esc(x.source || 'n/a')}</dd>
+    </dl>
+    <p style="color:var(--doux);font-size:13px">Pas de récit Haiku ici : un essai hors Claude n’a pas de transcription lue par le bureau, seulement les chiffres ci-dessus. <a href="#" data-mode="comparer">Comparer avec les autres modèles →</a></p>
+    <h4>Identifiant</h4><code>${esc(x.id)}</code>`;
+  p.classList.add('ouvert'); document.getElementById('voile').classList.add('ouvert'); p.setAttribute('aria-hidden', 'false');
 }
 function fermer() { const p = document.getElementById('panneau'); p.classList.remove('ouvert'); p.setAttribute('aria-hidden', 'true'); p.dataset.cle = ''; document.getElementById('voile').classList.remove('ouvert'); }
 
@@ -482,7 +580,7 @@ document.addEventListener('click', (ev) => {
   if (t.dataset.deplier) { etat.ouverts.add(t.dataset.deplier); return rendre(); }
   if (t.dataset.replier) { etat.ouverts.delete(t.dataset.replier); return rendre(); }
   if (t.dataset.groupe) { etat.groupe = etat.groupe === t.dataset.groupe ? '' : t.dataset.groupe; return rendre(); }
-  if (t.dataset.mode) { etat.mode = t.dataset.mode; try { localStorage.setItem('sd-mode', etat.mode); } catch {} rendre(); if (t.dataset.ancre) document.getElementById(t.dataset.ancre)?.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (t.dataset.mode) { fermer(); etat.mode = t.dataset.mode; if (etat.mode === 'comparer') M = null; try { localStorage.setItem('sd-mode', etat.mode); } catch {} rendre(); if (t.dataset.ancre) document.getElementById(t.dataset.ancre)?.scrollIntoView({ behavior: 'smooth' }); return; }
   if (t.dataset.pour != null) { fermer(); etat.pour = t.dataset.pour; etat.mode = 'liste'; rendre(); document.getElementById('s-agents')?.scrollIntoView({ behavior: 'smooth' }); return; }
   if (t.dataset.cle) return ouvrirPanneau(t.dataset.cle);
 });

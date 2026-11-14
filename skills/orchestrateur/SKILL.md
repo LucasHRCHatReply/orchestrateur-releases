@@ -1,10 +1,10 @@
 ---
 name: orchestrateur
 description: Session « prompt master » qui orchestre un chantier — découpe en étapes, lance de vraies sessions Claude Code (pas seulement des agents) avec pour chacune le modèle et l'effort les plus bas qui suffisent, les suit, les relance quand elles deviennent trop lourdes, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (sessions, agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 2.0.3
+version: 3.0.0
 ---
 
-# Orchestrateur — v2.0.3 du 04/11/2026
+# Orchestrateur — v3.0.0 du 13/11/2026
 
 Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**.
@@ -109,21 +109,69 @@ contrôle perdus sur un lot rejeté ensuite ; écrire les données en série : 1
 Tout calcul se vérifie par une commande (`node -e`) et sa formule s'affiche *(mesuré : l'essai du gabarit
 affichait 0,357 × 8 000 = 2 856 € en oubliant + 1 395 € du barème)*.
 
+### e) Déléguer hors Claude (GPT, Gemini)
+
+Une tâche bornée, avec un critère de fin vérifiable, qu'un autre fournisseur fait mieux ou sans coût d'API
+(manuel du § 3) : `node outils/deleguer.mjs --a gpt|gemini|claude --modele <id> --effort <e> --mode … --dossier … --brief …`,
+toujours précédé de `--a-sec`. Mode d'emploi, refus et journal : `deleguer.md`. L'annonce suit la même forme :
+> → images-lanterne — GPT Terra · low (déléguer) — parce que série d'images avec référence, 0 $ d'API
+
+Le rendu se vérifie comme celui d'une fille : fichier ouvert, test relancé, capture regardée.
+
 ## 3. Choisir modèle et effort (à chaque lancement, relance ou changement)
 
+Claude **orchestre, unifie, anime et vérifie** ; le reste va au fournisseur qui le fait le mieux, sur les abonnements.
 Règle : **le plus petit modèle et le plus bas effort qui réussissent**, vérifiés par un critère objectif ;
 monter le **modèle** avant l'**effort**. Juger sur le **gros du travail** (ce que la session lit et répète).
 
-| Travail | Modèle · effort |
-|---|---|
-| Question courte, fait, commande | Haiku · low |
-| Lire, chercher, extraire en JSON/CSV, trier, aiguiller | Haiku · medium (jamais low pour extraire) |
-| Code : script, bug localisé, petite commande | Sonnet · low |
-| Code : revue de diff, refacto multi-fichiers, une app entière | Sonnet · medium |
-| Captures, comparaison d'images, relevé visuel | Sonnet · low (**jamais Haiku**) |
-| Rédaction nuancée, classement de jugement | Sonnet · low à medium |
-| Décider, concevoir, arbitrer, orchestrer | Opus · medium |
-| Bloqué après 2 tentatives sérieuses | Opus · high (sur accord), puis expliquer l'obstacle |
+### Le manuel des modèles
+
+Usage → modèle · effort → ce que ça donne. **Public** : évaluation publiée, relue à sa source le 13/11/2026
+(détail, URL et dates : `manuel-modeles.md`). **Maison** : nos bancs (`bancv1/routage.txt`, banc intermodèle, banc de délégation).
+Quand les deux divergent, la tâche décide : **courante → effort bas** (nos bancs saturent : l'effort n'y change rien),
+**dure ou large → effort haut** (public : Opus ARC-AGI-2 low 70,1 → high 93,3 ; au-delà de high, le score baisse).
+
+| Usage | Courant (maison) | Dur (public) | Ce que ça donne | À éviter |
+|---|---|---|---|---|
+| Code : script, bug, 1 à 3 fichiers | Sonnet · low, ou **déléguer** à GPT Terra low (même score, 0 $ d'API) | Sonnet 5.5 · xhigh | délégation : 48/48 à 1,00 pour Claude, Terra, Sol, Hydrogen ; Claude 23 s, les autres 32 à 46 s · SWE-bench Pro V2 Sonnet 95,8 %, Haiku 87,2 % | Haiku sur un dépôt entier ; `max` (FrontierCode 52,1 → 46,2) |
+| Code : multi-fichiers, revue de diff | Sonnet · medium + seconde relecture GPT Terra | Sonnet 5.5 · xhigh (Fable 5.2 en premier choix qualité) | Terra relit : 7 constats, 16 570 jetons contre 8 et 79 921 pour Sonnet | `gpt-6-luna` pour relire |
+| Décider, concevoir, orchestrer | Opus · medium | Opus 5.5 · high | ARC-AGI-2 high 93,3 % ; n'a battu Sonnet sur aucune des 11 tâches du banc v1 | Opus pour exécuter |
+| Question courte, fait, commande | Haiku · low | — | — | — |
+| Lire, extraire, trier, note à gabarit | Haiku · medium (jamais low pour extraire) | Haiku 5.5 volume, Sonnet contrôle | même note que Sonnet au banc v1, 1/15 du prix | Haiku sur un tableur (−10,4 points sous Sonnet) |
+| Rédaction | Sonnet · low à medium | Opus 5.5 · high | banc v1 : Sonnet medium premier (0,948) · Arena créatif : Opus 1517, Sonnet 1464 | GPT-6 pour le style (1408 à 1451) |
+| Veille, recherche web | **GPT Sol · medium `--search`**, chiffres recoupés par WebFetch | idem | 0 chiffre faux sur 5 questions, contre ≥ 10 pour Gemini Hydrogen ; 1,76 × plus lent | un chiffre Gemini non relu à sa page |
+| Première passe de veille, liste de pages | Gemini Hydrogen · medium | — | 762 s pour 5 questions ; juste sur les classements simples | dépendre d'un chiffre lié à une version ou un effort |
+| Image raster, texture, scène | **GPT Sol** via `codex exec` | GPT-Image (Sunburst) en tête des classements | 9,5/10 contre 7 pour Claude (SVG) | une image raster demandée à Claude |
+| Série d'images, avatar, icône | référence validée puis **GPT Terra** `-i reference` | — | ≈ 35 000 → 15 000 jetons, note 6,3 → 8,2 ; série Lanterne : cohérence 9/10 | relancer sans référence |
+| SVG à cadrage exact | Claude (SVG puis Inkscape) | — | 7,5 contre 7, taille garantie | — |
+| Front-end, animations, intégration | Sonnet · medium | Sonnet 5.5 · xhigh (WebDev 1772) | Lanterne : intégration et animation Claude, juge 7/10 | GPT-6 Luna, Gemini 3.8 Flash (WebDev 1577, 1583) |
+| Captures, comparaison d'images | Sonnet · low (**jamais Haiku**) | Opus 5.5 · high pour l'image | — | Haiku |
+| Données de jeu (quiz, listes) | GPT Terra, faits relus par Claude | — | 8 contre 6,5 ; 9 460 jetons contre 58 976 | — |
+| Données en masse structurées | Haiku · medium ; GPT Luna high si quota GPT ouvert | Haiku volume, Sonnet contrôle | banc v1 masse : Luna high 0,991 | GPT-6 en finance agentique (Luna 56,8) |
+| Tâche longue autonome | étapes de quelques minutes, chacune vérifiée par Claude | Gemini Hydrogen · high pour la régularité | Vending-Bench 2 : Hydrogen ± 495 $, Sonnet ± 1 585 $ ; **aucune mesure publique de durée autonome fiable** | une chaîne de plusieurs heures sans point de contrôle |
+| Très long contexte | n/a | n/a : aucun score MRCR ou RULER recoupé | — | prendre la fenêtre annoncée pour une longueur utile |
+| Bloqué après 2 tentatives | Opus · high (sur accord), puis expliquer l'obstacle | — | — | `max` |
+
+**Gemini 4 Hydrogen au banc v1** (13/11/2026, 153 essais sur 201, juge Sonnet medium ; verdict provisoire, 48 essais manquants faute de quota) : égale les meilleurs en **raisonnement à high** (1,0 ; medium 0,875) et en **web à medium** (0,978) ; égale sans gain en code, masse, contexte (plafonds du banc) ; **perd en veille** (0,794, jusqu'à 178 s) et en image (0,778). Usage : raisonnement ou page web quand le quota Claude est tendu, jamais seul pour la veille ni l'image.
+Jamais Astra (quota), jamais Argon sous 30 % de quota, jamais `max`.
+
+### La chaîne créative type
+
+1. **Gemini** (Hydrogen · medium, recherche web) : veille de tendances et proposition de direction artistique (palette, polices, consigne d'image).
+2. **GPT** : une image de référence (Sol), validée, puis la série avec `-i reference` (Terra ou Sol).
+3. **Claude** : unifie (intègre dans la page, harmonise), anime, puis **vérifie** : captures 1440 et 390, images chargées, pas de défilement horizontal, juge.
+Mesuré une fois (mini-site Lanterne, 13/11/2026, `outils/bancs/delegation/CONCLUSION.md`) : 7/10 au juge, cohérence des images 9/10 ;
+les liens de veille de Gemini sont des redirections Google, à rouvrir. Pas de variante tout-Claude : la chaîne n'est pas prouvée meilleure, elle est la seule à produire des images raster.
+
+### Hors Claude : comment
+
+Par `outils/deleguer.mjs` (§ 2 e, `deleguer.md`) : il refuse au-delà des seuils de quota (Codex semaine > 70 % ou 5 h > 85 % ;
+Gemini 5 h < 25 % ou semaine < 30 % de reste) et note chaque appel dans `~/.cache/orchestration/intermodele/<fournisseur>.jsonl`
+(le bureau et `/orch modeles` le lisent). Avant un lot : `--a-sec`, puis plafond fixé avec l'utilisateur. Un sous-agent Claude paie
+≈ 57 000 jetons de démarrage ; Codex 4 000 à 25 000. Images à la main (sans `codex` sur le poste) : l'orchestratrice écrit des briefs prêts à coller
+(style, fichiers nommés, tailles, ZIP attendu), une fille Sonnet · low contrôle et installe le ZIP. Le volet visuel se propose d'office
+*(consigne de l'utilisateur du 12/11/2026 : « à chaque fois je t'en ai parlé, tu dévies »)*.
+Limites : une répétition au plus par couple (un point d'écart est du bruit), banc de code délégué saturé (tâches trop faciles), Fable non mesuré en orchestratrice.
 
 - **Garde-fou Opus** : une session qui lit un domaine entier ou répète la même analyse part sur Sonnet.
   *(mesuré : les sessions principales Opus · medium font 66 sessions sur 785 et 75 % du coût.)*

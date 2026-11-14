@@ -1,11 +1,11 @@
 ---
 name: orch
 description: Le tableau de bord de l'orchestration en cours — combien de sessions et d'agents elle a lancés, avec quel modèle, ce qu'ils coûtent, le poids du contexte, les règles du skill orchestrateur tenues ou manquées, et le bilan du mois. `/orch` (tableau), `/orch sessions`, `/orch agents`, `/orch poids`, `/orch cout`, `/orch regles`, `/orch bilan [jours]`, `/orch conseil`, `/orch accueil`, et `/orch ranger` qui archive les sessions finies après une note de reprise et dit la mémoire vive rendue.
-version: 1.3.1
+version: 1.4.0
 model: claude-haiku-5-5
 effort: medium
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/skills/orch/lancer.sh:*)
-argument-hint: "[sessions|agents|poids|cout|regles|bilan N|conseil|accueil|ranger]"
+argument-hint: "[sessions|agents|poids|cout|regles|bilan N|conseil|modeles|accueil|ranger]"
 ---
 
 # /orch — où en est l'orchestration
@@ -25,6 +25,7 @@ Le dépôt est le dossier du plugin : `DEPOT="${CLAUDE_PLUGIN_ROOT}"`.
 | `/orch regles` | les règles du skill orchestrateur tenues (✓), manquées (✗) et pourquoi | `… regles …` |
 | `/orch bilan [jours]` | le mois de ce Mac comparé aux mesures de la v1 (≈ 35 s) | `… bilan 30` |
 | `/orch conseil` | quel modèle et quel effort pour quel travail, avec la mesure | `… conseil` |
+| `/orch modeles` | les essais confiés à GPT, Gemini, Antigravity (et Claude, au banc) : par type de tâche, réussite, coût, durée, compte par compte | `… modeles` |
 | `/orch accueil` | rouvre la page d'accueil et réécrit le mot d'accueil | voir plus bas |
 | `/orch ranger` | range l'orchestration : chaque session de la famille (état, âge, mémoire vive, contexte, coût, non commité, question), le tri archiver / garder / relancer, puis notes de reprise, archivage et bilan | voir plus bas |
 

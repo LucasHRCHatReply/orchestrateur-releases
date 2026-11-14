@@ -2,11 +2,12 @@
 // L'état de l'orchestration en cours, lu dans la transcription de la session courante.
 // Sert les commandes du skill /orch. Sortie en Markdown, que Claude recopie telle quelle.
 //
-// Usage : node outils/etat.mjs [tableau|sessions|agents|poids|cout|regles|bilan [jours]|conseil] [--session id] [--dossier chemin]
+// Usage : node outils/etat.mjs [tableau|sessions|agents|poids|cout|regles|bilan [jours]|conseil|modeles] [--session id] [--dossier chemin]
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { analyserSession, lire, famille, cout } from './extraire.mjs';
+import * as intermodele from './intermodele.mjs';
 
 const SONNET = 'claude-sonnet-5-5';
 
@@ -149,10 +150,23 @@ const CONSEIL = `| Ce que fait la session | Modèle · effort | Mesure (206 essa
 Monter le **modèle** avant l’effort : sur 11 tâches, un effort plus haut n’a jamais corrigé un échec de modèle.`;
 
 // ── Commandes
-const f = ['bilan', 'conseil'].includes(CMD) ? null : transcriptionCourante();
-if (!f && !['bilan', 'conseil'].includes(CMD)) { console.log('Aucune transcription trouvée pour ce dossier. Passer `--session <id>` ou `--dossier <chemin>`.'); process.exit(0); }
+const f = ['bilan', 'conseil', 'modeles'].includes(CMD) ? null : transcriptionCourante();
+if (!f && !['bilan', 'conseil', 'modeles'].includes(CMD)) { console.log('Aucune transcription trouvée pour ce dossier. Passer `--session <id>` ou `--dossier <chemin>`.'); process.exit(0); }
 const out = [];
 if (CMD === 'conseil') out.push('### Quel modèle, quel effort', '', CONSEIL);
+else if (CMD === 'modeles') {
+  // Les essais confiés à d'autres modèles que Claude (GPT, Gemini, Antigravity), tous comptes réunis par le dépôt.
+  const E = intermodele.lireEssais(); const C = intermodele.comparer(E); const e = (x) => x == null ? 'n/a' : `${x.toFixed(x < 0.1 ? 4 : 2).replace('.', ',')} €`;
+  const ex = E.filter((x) => /^exemple/i.test(x.source)).length;
+  if (!E.length) out.push('### Comparer les modèles', '', 'Aucun essai hors Claude enregistré. Ils viennent de `outils/bancs/intermodele/essais.jsonl`, de `~/.cache/orchestration/intermodele/*.jsonl` et de `perfs/<compte>/intermodele.jsonl` (partagé par `partager.sh`).');
+  else {
+    out.push(`### Comparer les modèles — ${E.length} essais, ${C.comptes.length} compte(s) : ${C.comptes.join(', ')}`, '',
+      ...(ex ? [`⚠ ${ex} essai(s) d'exemple dans ces chiffres : pas une mesure.`, ''] : []),
+      'Réussi = qualité ≥ 70 % et conformité ≥ 50 % quand elles sont données. Triés du plus réussi au moins cher. Les euros sont un équivalent API, jamais une dépense : tout passe par les abonnements.', '');
+    for (const t of C.types) out.push(`**${t.type}** (${t.n} essais)`, '', '| Modèle | Voie | Essais | Réussis | Qualité | Équiv. API moyen (non payé) | Durée médiane | Par compte |', '|---|---|---|---|---|---|---|---|',
+      ...t.lignes.map((l) => `| ${intermodele.nomFournisseur(l.fournisseur)} · ${l.modele || '—'} | ${l.voie || 'n/a'} | ${l.n} | ${l.jugés ? `${l.reussis}/${l.jugés}` : 'non jugé'} | ${l.qualiteMoyenne == null ? 'n/a' : `${Math.round(100 * l.qualiteMoyenne)} %`} | ${e(l.coutMoyen)} | ${l.dureeMediane == null ? 'n/a' : `${Math.round(l.dureeMediane)} s`} | ${Object.entries(l.parCompte).map(([c, v]) => `${c} ${v.n}`).join(' · ')} |`), '');
+  }
+}
 else if (CMD === 'bilan') {
   const j = Number(PARAM) || 30; const b = await bilan(j);
   if (JSON_) { console.log(JSON.stringify(b)); process.exit(0); }
@@ -193,7 +207,8 @@ else if (CMD === 'bilan') {
       `| **Poids** | \`${jauge(L.ctx, 500000, 14)}\` ${k(L.ctx)} jetons |`,
       `| **Coût** | ${$(s.cout + coutAgents)} (dont agents ${$(coutAgents)}) |`,
       `| **Suivi** | ${L.minuteries.length} minuterie(s) · ${s.sendMessage} message(s) aux sessions · ${s.annonces} annonce(s) modèle · effort |`,
-      `| **Règles tenues** | ${R.score} |`, '',
+      `| **Règles tenues** | ${R.score} |`,
+      ...(() => { const H = intermodele.lireEssais().filter((x) => x.fournisseur !== 'anthropic'); return H.length ? [`| **Hors Claude** | ${H.length} essais enregistrés — ${Object.entries(H.reduce((o, x) => (o[intermodele.nomFournisseur(x.fournisseur)] = (o[intermodele.nomFournisseur(x.fournisseur)] || 0) + 1, o), {})).map(([k, n]) => `${n} ${k}`).join(' · ')} · \`/orch modeles\` pour comparer |`] : []; })(), '',
       ...(lanc.length ? ['**Sessions**', '', tSessions.join('\n'), ''] : []),
       '**Règles**', '', ...R.lignes.map((l) => `- ${l}`), '', ...poids(L.ctx));
   }
