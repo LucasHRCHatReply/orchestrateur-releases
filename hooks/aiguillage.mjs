@@ -17,7 +17,7 @@ const lireStdin = () => { try { return fs.readFileSync(0, 'utf8'); } catch { ret
 
 const DEMANDE = /\borchestre[rsz]?\b|\borchestrons\b|prompt master|\blance[rsz]?\s+(?:des|une?|les|deux|trois|quatre|cinq|plusieurs|\d+)\s+(?:sessions?|agents?|t[aâ]ches?|chantiers?|filles?)\b|lance[rsz]?\s+(?:en parall[eè]le|en fond)|en parall[eè]le|r[ée]partis|d[ée]l[eè]gue|fais(?: les)? faire|sous[- ]t[aâ]ches?|sessions? (?:filles?|s[ée]par[ée]es?)|plusieurs (?:sessions|agents|t[aâ]ches)|des agents? (?:pour|qui|en)\b|\bagents? (?:pour|qui)\b/i;
 const ANNONCE = /(haiku|sonnet|opus|fable)(?:[\s-]*\d(?:[.,]\d)?)?\s*[·•\/,(]\s*(?:effort\s*)?(low|medium|high|xhigh|max)\b/i;
-const TABLE = 'Haiku · medium : lire, extraire, trier, note à gabarit, bug simple testé (1/15 du prix de Sonnet, même note au banc) · Sonnet · low : code, captures, classement, raisonnement vérifiable · Sonnet · medium : multi-fichiers, revue de diff · Opus · medium : décider, concevoir, orchestrer (n\'a battu Sonnet sur aucune des 11 tâches du banc)';
+const TABLE = 'Haiku · medium : lire, extraire, trier, note à gabarit, code spécifié et testé (banc codedur : 24/24, 1/7 du prix de Sonnet) · Sonnet · low : code sans test, captures, classement, raisonnement vérifiable · Sonnet · medium : multi-fichiers, revue de diff · Opus · medium : décider, concevoir, orchestrer (n\'a battu Sonnet sur aucune des 11 tâches du banc)';
 
 const sortir = (evenement, texte) => {
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: evenement, additionalContext: texte } }));

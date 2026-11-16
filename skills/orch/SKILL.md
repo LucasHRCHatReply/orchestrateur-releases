@@ -43,7 +43,7 @@ Claude Code a lancé la commande avant ce tour (`/orch $ARGUMENTS`) ; sa sortie 
    `mcp__ccd_session_mgmt__list_sessions` `{"linked": true}` (charger par `ToolSearch` s'il est différé) —
    colonne « En direct » : travaille, attend l'utilisateur, finie.
 3. Terminer par **une ligne** « À faire maintenant : … » quand une règle est ✗ ou que le poids dépasse 200 k
-   (ex. « armer `/point 5` », « écrire la note de reprise et relancer »). Rien d'autre.
+   (ex. « démarrer le suivi `suivi.mjs demarrer` », « écrire la note de reprise et relancer »). Rien d'autre.
 
 ## `/orch accueil`
 

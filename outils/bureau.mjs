@@ -517,6 +517,10 @@ function serveur() {
       if (u.pathname === '/' || u.pathname === '/bureau') return envoyer(res, 200, fs.readFileSync(page, 'utf8'), 'text/html; charset=utf-8');
       if (u.pathname === '/api/ping') return envoyer(res, 200, { ok: true, depot: DEPOT, pid: process.pid, code: CODE });
       if (u.pathname === '/api/envs') return envoyer(res, 200, environnements());
+      if (u.pathname === '/api/suivi') {   // le tableau du suivi sans modèle (outils/suivi.mjs), tel quel
+        const f = path.join(CACHE, 'suivi', String(q.o || '').replace(/[^\w.-]/g, ''), 'tableau.json');
+        return envoyer(res, 200, lireJSON(f, { absent: true }));
+      }
       if (u.pathname === '/api/modeles') { const E = intermodele.lireEssais({ depot: DEPOT, maison: MAISON }); return envoyer(res, 200, { ...intermodele.comparer(E), noms: intermodele.NOMS, exemples: E.filter((e) => /^exemple/i.test(e.source)).length }); }
       const env = q.c ? `c:${q.c}` : `s:${q.s || ''}`;
       if (u.pathname === '/api/env') {

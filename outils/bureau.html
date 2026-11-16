@@ -212,6 +212,24 @@ aside a { color: inherit; }
 @media (max-width: 640px) { .frise { --g: 110px !important; padding: 10px; } }
 @media (max-width: 720px) { .etats { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .barre { padding: 10px 16px; } main { padding: 14px 16px 60px; } .sol { padding: 12px; } h1 { font-size: 23px; } .ajour { margin-left: 0; } .env > button { max-width: 80vw; } }
+
+/* Le suivi sans modèle : les attentes en tête, puis une carte par session (outils/suivi.mjs, relu toutes les 2 s). */
+#suivi:empty { display: none; }
+.sv { margin: 0 0 22px; }
+.sv h2 { font-size: 15px; margin: 0 0 8px; }
+.sv .ligne { font-size: 13px; color: var(--doux); margin-bottom: 10px; }
+.sv .att { border: 2px solid #d08a2c; background: var(--carte); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; }
+.sv .att b { display: block; } .sv .att small { color: var(--doux); }
+.sv .phr { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.sv .phr code { background: var(--sol); border-radius: 6px; padding: 4px 8px; font-size: 13px; white-space: normal; flex: 1 1 260px; }
+.sv .phr button, .sv .phr a { font-size: 12px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); border-radius: 99px; padding: 3px 10px; text-decoration: none; cursor: pointer; }
+.sv .cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.sv .c { background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; padding: 10px 12px; font-size: 13px; min-width: 0; }
+.sv .c .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv .c .e { font-size: 12px; color: var(--doux); }
+.sv .barre-p { height: 6px; border-radius: 99px; background: var(--sol); margin: 6px 0; overflow: hidden; } .sv .barre-p i { display: block; height: 100%; background: #3c8d5a; }
+.sv .alerte { color: #b5452f; font-size: 12px; }
+.sv .fond { font-size: 12.5px; color: var(--doux); margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -455,6 +473,7 @@ function rendre() {
   const bloques = trier(vivants.filter((x) => G(x) === 'bloque')).slice(0, 8);
   m.innerHTML = `
     ${D.lignee.length > 1 || D.parent ? `<div class="lignee">${D.parent ? `<span>Lancée par</span><a href="?s=${encodeURIComponent(D.parent.id)}" style="color:inherit">${esc(D.parent.titre)}</a><span>·</span>` : ''}${D.lignee.length > 1 ? D.lignee.map((g, i) => `${i ? '<span>→</span>' : ''}<button data-cle="${esc(g.cle)}" data-bulle="${esc(g.cle)}" class="${i === D.lignee.length - 1 ? 'ici' : ''}">G${g.generation}</button>`).join('') : ''}</div>` : ''}
+    <div id="suivi"></div>
     <h1>${esc(chef.titre)}</h1>
     <p class="phrase ${ph ? 'haiku' : ''}" title="${ph ? esc(`Écrite par Haiku 5.5 · low${ph.cache ? ', en cache (0 $)' : `, ${dollars(ph.cout)}`}`) : 'Calculée à partir des titres ; Haiku la réécrit une fois'}">${esc(ph?.texte || D.phrase)}</p>
     <div class="etats">${Object.entries(GROUPES).map(([g, v]) => `<button class="tuile ${etat.groupe === g ? 'choisi' : ''} ${n(g) ? '' : 'zero'} ${g === 'actif' && n(g) ? 'anime' : ''}" style="--c:${v.c}" data-groupe="${g}" title="${esc(v.x)} Cliquer pour n’afficher qu’eux.">
@@ -562,7 +581,7 @@ async function charger(phrase) {
   if (!D.erreur) { const cle = D.lignee[0].id, n = D.lignee.length;
     if (vuGen[cle] && n > vuGen[cle]) { annonce = `↻ L’orchestration vient d’être relancée : génération ${n}, « ${esc(D.chef.titre)} ». La page la suit.`; try { new Notification('Session Desk', { body: `Génération ${n} : ${D.chef.titre}` }); } catch {} }
     vuGen[cle] = n; }
-  rendre(); rendreEnvs(document.getElementById('envCherche').value);
+  rendre(); rendreSuivi(); chargerSuivi(); rendreEnvs(document.getElementById('envCherche').value);
   if (phrase && !D.erreur && (D.sessions.length || D.agents.length)) {
     try { const r = await (await fetch(`/api/phrase?${q()}`)).json(); if (r.texte) { phraseHaiku[D.chef.cle] = r; rendre(); } } catch {}
   }
@@ -592,6 +611,31 @@ document.addEventListener('mousemove', (e) => { if (!bulle.classList.contains('v
 
 fetch('/api/envs').then((r) => r.json()).then((E) => { ENVS = E; rendreEnvs(); }).catch(() => {});
 charger(true);
+
+// ── Le suivi sans modèle (outils/suivi.mjs) : relu toutes les 2 s, rien n'est calculé ici.
+let SV = null;
+const minutes = (m) => m < 1 ? 'moins d’une minute' : m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')}`;
+const ETATS_SV = { travaille: 'travaille', attend: 'vous attend', fini: 'tour fini', repos: 'au repos' };
+function rendreSuivi() {
+  const z = document.getElementById('suivi'); if (!z) return;
+  if (!SV || SV.absent || SV.erreur) { z.innerHTML = ''; return; }
+  const vieux = Date.now() - Date.parse(SV.maj) > 30000;
+  const att = (SV.attentes || []).map((a) => `<div class="att"><b>${esc(a.titre)} — ${esc(a.type)} depuis ${minutes(a.minutes)}</b><small>${esc(a.message || '').slice(0, 220)}</small>
+    <div class="phr"><code>${esc(a.phrase)}</code><button data-copier="${esc(a.phrase)}" title="Copier la phrase, puis la coller dans la session">Copier</button>${/^claude:/.test(a.lien) ? `<a href="${esc(a.lien)}" title="Ouvrir la session dans l’app">Ouvrir la session</a>` : `<code title="Commande de reprise">${esc(a.lien)}</code>`}</div></div>`).join('');
+  const cartes = [...(SV.agents || []), ...(SV.filles || [])].map((f) => { const av = f.avancement || {}; const pc = av.total ? Math.round(100 * av.fait / av.total) : av.etapes ? Math.round(100 * (av.etape - 1) / av.etapes) : null;
+    return `<div class="c" title="${esc(f.critere ? 'Critère de fin : ' + f.critere : 'Critère de fin non relevé')}"><div class="t">${f.genre === 'agent' ? '◆ ' : ''}${esc(f.titre)}</div>
+    <div class="e">${f.genre === 'agent' ? `agent de ${esc(f.titreParent || 'la session')} · ` : ''}${esc(ETATS_SV[f.etat] || f.etat)}${f.aJuger ? ' · rapport à juger' : f.verdict ? ' · ' + esc(f.verdict) : ''}${f.modele ? ' · ' + esc(f.modele.replace(/^claude-/, '')) : ''}${f.effort ? ' · ' + esc(f.effort) : ''}</div>
+    ${pc != null ? `<div class="barre-p" title="${av.etape ? `étape ${av.etape}/${av.etapes}` : ''}${av.total ? ` · ${av.fait}/${av.total}` : ''}"><i style="width:${pc}%"></i></div>` : ''}
+    ${av.etape ? `<div>Étape ${av.etape}/${av.etapes}${av.nom ? ' — ' + esc(av.nom) : ''}${av.total ? ` · ${av.fait}/${av.total}` : ''}</div>` : ''}
+    <div class="e">${f.derniere ? `${esc(f.derniere.outil)} ${esc(f.derniere.cible)} · il y a ${minutes((Date.parse(SV.maj) - Date.parse(f.derniere.t)) / 60000)}` : 'aucune action relevée'}${f.contexte ? ` · ${Math.round(f.contexte / 1000)} k jetons` : ''}</div>
+    ${(f.seuils || []).map((s) => `<div class="alerte">⚠ ${esc(s.texte)}</div>`).join('')}</div>`; }).join('');
+  const fond = [...(SV.fond || []).map((x) => `${esc(x.nom)} : ${esc(x.ligne)}`), ...(SV.sondes || []).map((x) => `${x.ok ? '✓' : '✗'} ${esc(x.nom)} : ${esc(x.sortie)}`)].join('<br>');
+  z.innerHTML = `<section class="sv"><div class="ligne" title="Écrit par les hooks et outils/suivi.mjs, sans tour de modèle">${esc(SV.ligne)}${vieux ? ' · tableau figé : suivi arrêté ?' : ''}</div>
+    ${att ? `<h2>Vous attendent</h2>${att}` : ''}${cartes ? `<div class="cartes">${cartes}</div>` : ''}${fond ? `<div class="fond">${fond}</div>` : ''}</section>`;
+}
+async function chargerSuivi() { if (!D || D.erreur) return; try { SV = await (await fetch(`/api/suivi?o=${encodeURIComponent(D.chef.id)}`)).json(); } catch { SV = null; } rendreSuivi(); }
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-copier]'); if (!b) return; navigator.clipboard?.writeText(b.dataset.copier).then(() => { b.textContent = 'Copiée'; setTimeout(() => { b.textContent = 'Copier'; }, 1500); }).catch(() => {}); });
+setInterval(() => { if (!document.hidden) chargerSuivi(); }, 2000);
 setInterval(() => { if (!document.hidden && !document.getElementById('panneau').classList.contains('ouvert')) charger(false); }, 5000);
 </script>
 </body>

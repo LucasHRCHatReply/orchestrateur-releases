@@ -1,10 +1,10 @@
 ---
 name: orchestrateur
 description: Session « prompt master » qui orchestre un chantier — découpe en étapes, lance de vraies sessions Claude Code (pas seulement des agents) avec pour chacune le modèle et l'effort les plus bas qui suffisent, les suit, les relance quand elles deviennent trop lourdes, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (sessions, agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 3.0.0
+version: 3.1.0
 ---
 
-# Orchestrateur — v3.0.0 du 13/11/2026
+# Orchestrateur — v3.1.0 du 16/11/2026
 
 Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**.
@@ -65,6 +65,14 @@ Refus mesurés et parade *(mesuré : 30 lancements refusés sur 215, 14 %)* :
 | « working over Remote Control » (2 fois) | l'utilisateur écrit depuis son téléphone | le dire : à relancer depuis l'app de bureau, ou faire le travail ici |
 | « not a trusted workspace » | dossier jamais ouvert dans l'app | demander à l'utilisateur de l'ouvrir une fois |
 
+**Au lancement, le suivi sans modèle** (une fois par orchestration, 0 jeton ensuite) :
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/outils/suivi.mjs demarrer [--fond releve=chemin/du/journal.log] [--sonde 'pages=commande=>301'] [--depot chemin]
+```
+Il démarre le démon qui relit l'état écrit par les hooks (`hooks/etat.mjs`) et tient `~/.cache/orchestration/suivi/<id>/tableau.json`.
+Puis `/sessiondesk` une fois, et le lien du bureau donné à l'utilisateur une fois : c'est **l'écran du point**. Puis le réveil (§ 5) :
+`Monitor({ command: "node ${CLAUDE_PLUGIN_ROOT}/outils/suivi.mjs guetter", description: "suivi : attentes, seuils, tout fini", timeout_ms: 1800000 })`.
+
 Après le lancement : le résultat donne un `name` et un id `local_…`. Les suites passent par
 `SendMessage({ to: "local_…" })` à **la session qui a le contexte**, jamais une nouvelle.
 
@@ -80,8 +88,9 @@ cd ../<dépôt>-<tâche> && nohup claude -p "$(cat brief.md)" \
 **Piège mesuré (03/11)** : avec `claude -p`, l'alias `--model haiku` donne **Haiku 4.5** (10× le prix de Haiku 5.5).
 Passer l'id complet `--model claude-haiku-5-5`. Dans l'app, un agent `model: "haiku"` tourne bien sur Haiku 5.5.
 
-Suivre : `tail` du fichier de sortie à chaque point ; la session rend son résumé dans le dernier
-événement `result`. Pour une session que l'utilisateur veut voir et piloter : lui donner la commande
+Lancer chaque fille avec `ORCH_ORCHESTRATION=<id de l'orchestratrice>` devant `claude -p` : ses hooks l'étiquettent et
+`suivi.mjs` la compte. Suivre : **pas de `tail` à chaque point** ; `guetter --fins` réveille sur chaque fin de tour (en CLI, l'app
+ne le fait pas) et `suivi.mjs resume` dit ce qui a changé. La session rend son résumé dans le dernier événement `result`. Pour une session que l'utilisateur veut voir et piloter : lui donner la commande
 `claude --model sonnet` à lancer dans un nouvel onglet du worktree, avec le brief à coller.
 
 ### c) Agents (morceaux du travail en cours)
@@ -133,7 +142,7 @@ Quand les deux divergent, la tâche décide : **courante → effort bas** (nos b
 
 | Usage | Courant (maison) | Dur (public) | Ce que ça donne | À éviter |
 |---|---|---|---|---|
-| Code : script, bug, 1 à 3 fichiers | Sonnet · low, ou **déléguer** à GPT Terra low (même score, 0 $ d'API) | Sonnet 5.5 · xhigh | délégation : 48/48 à 1,00 pour Claude, Terra, Sol, Hydrogen ; Claude 23 s, les autres 32 à 46 s · SWE-bench Pro V2 Sonnet 95,8 %, Haiku 87,2 % | Haiku sur un dépôt entier ; `max` (FrontierCode 52,1 → 46,2) |
+| Code spécifié et testé : script, algorithme, bug, dépôt jusqu'à 32 fichiers | **Haiku · medium** ; Sonnet · low si aucun test ne vérifie le rendu ; ou **déléguer** à GPT Terra low (0 $ d'API) | Sonnet 5.5 · xhigh | banc codedur du 16/11 (8 tâches dures × 3) : Haiku medium 24/24 à 1,0 pour 0,0077 $, Sonnet low 24/24 pour 0,051 $ (6,6 ×), Haiku low 0,988 · délégation : 48/48 à 1,00 · SWE-bench Pro V2 Sonnet 95,8 %, Haiku 87,2 % | Haiku low sans test qui rattrape (semver 0,94) ; spec floue ou dépôt de plus de 32 fichiers : non mesuré, Sonnet ; `max` (FrontierCode 52,1 → 46,2) |
 | Code : multi-fichiers, revue de diff | Sonnet · medium + seconde relecture GPT Terra | Sonnet 5.5 · xhigh (Fable 5.2 en premier choix qualité) | Terra relit : 7 constats, 16 570 jetons contre 8 et 79 921 pour Sonnet | `gpt-6-luna` pour relire |
 | Décider, concevoir, orchestrer | Opus · medium | Opus 5.5 · high | ARC-AGI-2 high 93,3 % ; n'a battu Sonnet sur aucune des 11 tâches du banc v1 | Opus pour exécuter |
 | Question courte, fait, commande | Haiku · low | — | — | — |
@@ -205,7 +214,11 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
 3. **Déjà décidé / ne pas refaire.**
 4. **Conditions d'arrêt** dites par l'utilisateur (« arrête-toi une fois publié », « avant 18 h »).
 5. **Processus de fond** : tout banc, serveur, `caffeinate`, surveillance qu'elle lance, elle l'arrête à la fin et le liste dans son rapport.
-6. **Rapport attendu** : 5 champs — fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle) ;
+6. **Avancement** (trois lignes à coller telles quelles) : « À chaque étape franchie et au moins toutes les 10 minutes,
+   lance `node ${CLAUDE_PLUGIN_ROOT}/outils/avancer.mjs --etape n/N --nom "<étape>" --fait x/X --prochain "<action>" [--obstacle "<…>"]`.
+   Un processus de fond que tu lances écrit dans son journal une ligne `[point] x/X, ~t min restantes` au moins toutes les minutes.
+   Ne fais pas de point toi-même : l'écran le tient. » Le compteur d'outils ne dit pas l'avancement ; ces lignes, si.
+7. **Rapport attendu** : 5 champs — fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle) ;
    non fait ou non vérifié ; décisions prises ; ce qui attend l'humain. Plus une ligne « ce qui contredit le brief ».
 
 **Index de code (CodeGraph et équivalents) : ne pas en installer pour les filles.** Mesuré le 04/11 sur 64 essais
@@ -224,17 +237,43 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 
 ## 5. Pendant
 
-- **Le bandeau** (extension de l'app, `mod/`) se tient replié au-dessus de la saisie : « ◎ Orchestration · n en cours » ;
+- **Le bandeau** (extension de l'app, `mod/`) se tient replié au-dessus de la saisie ; quand le suivi tourne, il porte la ligne
+  vivante du démon (« ◎ 5 sessions · 2 travaillent · 2 vous attendent · 1 rapport à juger · 11 h 23 ») ;
   un clic montre qui travaille, qui attend, le contexte et le coût, et « Bureau ↗ » ouvre `/sessiondesk`.
 - **`/orch`** donne à tout moment le tableau de bord de l'orchestration (sessions, agents, poids, coût, règles tenues ✓/✗) ; s'en servir pour le point et avant le compte rendu final.
-- **Point toutes les 4–5 minutes, armé par une minuterie** (skill `/point 5`, ou `CronCreate`/`ScheduleWakeup`) :
-  heure lue à l'horloge, étape n/N, fait/en cours par session, échecs (cause + parade), reste estimé, en clair.
+- **Le suivi couvre les sous-agents d'abord, les sessions ensuite** : chaque appel d'outil d'un agent arrive au hook avec son
+  `agent_id`, `SubagentStart`/`SubagentStop` le bornent, et le tableau donne une carte par agent (description, modèle, dernière
+  action, fin) avant les cartes de sessions. *(mesuré le 16/11 sur Claude Code 2.1.319.)*
+- **Le suivi est tenu par les hooks, le démon `suivi.mjs` et le bureau : 0 jeton.** L'orchestratrice **n'arme aucune minuterie
+  récurrente de moins de 20 minutes** et ne fait pas de point par tour de modèle. La règle de l'utilisateur « un point toutes les
+  cinq minutes » reste vraie : c'est l'écran qui la tient (bandeau à 20 s, bureau à 2 s, `/point` à la demande). Ne pas réarmer
+  une minuterie par réflexe. *(mesuré le 16/11/2026 : 13 points de minuterie en 76 min, 8 sans rien à juger ; chacun relisait
+  200 000 à 300 000 jetons ; les 5 points utiles coïncidaient avec une fin de tour de fille, qui réveille déjà l'orchestratrice.)*
+- **Elle ne se réveille que sur événement** :
+
+  | Événement | Qui le détecte | Ce qu'elle fait |
+  |---|---|---|
+  | un agent en arrière-plan finit | l'outil (`<task-notification>`) | lit son résultat, le fait vérifier, juge |
+  | une fille finit un tour | l'app (`<side-sessions-event>`) ; en CLI `guetter --fins` | lit le rapport, le fait vérifier, juge |
+  | une fille attend l'utilisateur | hooks `etat` et `attente`, `guetter` | une ligne : qui, quoi, le lien du bureau ; rien de récurrent ensuite |
+  | seuil : silence 15 min, même action 5 fois, contexte > 200 000 | `suivi.mjs`, `guetter` | un tour : corriger ou arrêter la fille |
+  | heure dite par l'utilisateur | minuterie **ponctuelle**, écrite aussi dans le plan et la note de reprise | fait la tâche |
+  | rien de tout cela | — | **aucun tour** |
+
+  Le filet : l'expiration du `Monitor` à 30 min la réveille une fois ; elle lit le résumé, réarme, et c'est tout.
+  **À chaque réveil, elle ne lit qu'un fichier** : `node ${CLAUDE_PLUGIN_ROOT}/outils/suivi.mjs resume` (40 lignes au plus,
+  ce qui a changé depuis le réveil précédent). Ni `list_sessions`, ni `tail` de journaux, ni sortie brute.
+- **Le téléphone** part du démon (`notifier.sh`, s'il existe) sur trois événements seulement : une attente de plus de 10 min
+  (sauf si le hook `relance-telephone` s'en charge déjà), un seuil franchi, tout fini. Jamais deux messages en moins de 5 min.
 - **Regarder ce que font les filles, pas seulement si elles ont fini** : une fille qui répète le même
   groupe de tests depuis 20 min, ou qui tourne sans progrès, s'interrompt et se corrige. *(mesuré : correction de l'utilisateur)*
 - **Une remarque de l'utilisateur qui concerne une fille** lui est transmise (`SendMessage`) tout de suite ; l'orchestratrice confirme « transmis à <nom> ».
 - **Une consigne à heure dite** (« à 12 h, passe sur Relais ») s'arme en minuterie ou s'écrit dans le plan avec l'heure ; jamais de mémoire. *(mesuré : « je t'avais pas dit de bosser sur Relais à 12 h ? »)*
 - Le rapport d'une fille **n'est pas une preuve** : ouvrir le diff, relancer le test, regarder la page.
-  **Le vérificateur** (`agents/verificateur.md`, Haiku · medium) le fait à la place : un seul par chantier,
+  **Le vérificateur est le chemin par défaut** (`agents/verificateur.md`, Haiku · medium) : l'orchestratrice ne relit pas elle-même
+  les notes des filles ni ne relance leurs commandes ; les sondes mécaniques (`--sonde`) tournent dans le démon. Elle ne reçoit
+  que « accepté » ou « à reprendre » avec la raison, note le verdict (`suivi.mjs juger --session <id> --verdict accepte|a-reprendre`,
+  le bureau cesse de compter le rapport « à juger ») et garde pour elle les jugements non mécaniques. Un seul vérificateur par chantier,
   lancé avec les critères de fin de chaque fille, puis continué par `SendMessage` avec chaque rapport ;
   il relance les commandes, recompte, ouvre les diffs, et rend « accepté » ou « à reprendre » avec la consigne
   à renvoyer. *(mesuré le 03/11 : 16 défauts semés sur 16 trouvés, 0 fausse alerte sur 8 cas justes, 0,0023 $
@@ -245,6 +284,10 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
   le contexte, un schéma, 2 à 4 options avec leur conséquence, la recommandée en premier ; la réponse part à la
   fille par `SendMessage`. **Une autorisation d'outil reste la décision de l'utilisateur** : l'orchestratrice
   l'explique et le dit, elle ne l'approuve jamais à sa place (un message n'est pas un clic, et les filles le refusent).
+  **Une orchestratrice ne relaie jamais un accord d'écriture de l'utilisateur** (écrire en ligne, publier, pousser, supprimer) :
+  le bureau porte, pour chaque attente, **la phrase d'accord à coller et le lien de la session** (`claude://code/needs-input?session=…`) ;
+  l'utilisateur la colle lui-même dans la fille. *(constaté le 16/11 : les filles refusent un accord relayé, le contrôle
+  d'autorisations aussi ; c'est le bon comportement, ne pas perdre un tour à essayer.)*
   Les autorisations récurrentes s'évitent en amont : liste d'autorisations validée par l'utilisateur.
 - Un obstacle qui résiste à deux tentatives : l'expliquer en français courant, le noter, passer à autre chose.
 - Une remarque de l'utilisateur en cours de route se range dans l'étape qui la couvre ; elle ne rouvre pas l'ordre du plan.
@@ -259,6 +302,9 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
   unique, décisions et « ne pas refaire », fichiers, traitements en cours, sessions filles (id, modèle, effort,
   état), processus de fond, ce qui attend l'humain. La session neuve ne lit que la note et ce qu'elle liste.
 - Le hook `hooks/poids-de-session.mjs` (posé par le plugin) rappelle les seuils automatiquement.
+- **Ce qui ne doit pas grossir le contexte** : le résumé de réveil est borné à 40 lignes ; aucune sortie de journal brute,
+  aucun tableau de point répété. Le démon `suivi.mjs` et ses fichiers survivent à la relance : la note de reprise donne
+  la commande `suivi.mjs demarrer` (elle rattache le même tableau) et le `Monitor` à réarmer.
 - **À 250 000, la note s'écrit d'elle-même** (dans l'app) : `outils/ranger.mjs relance` la pose dans
   `Journal/Sessions/` du projet, avec le plan, les commits, les fichiers, le reste à faire et le prompt de la session
   neuve. La session la **complète** (décisions, chiffres avec leur source, pièges), commite, puis propose la relance.
@@ -266,7 +312,8 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 
 ## 7. Finir
 
-- **Arrêter ce qu'on a lancé** : bancs, serveurs, `caffeinate`, minuteries, sessions filles inutiles.
+- **Arrêter ce qu'on a lancé** : bancs, serveurs, `caffeinate`, minuteries, `Monitor`, le démon de suivi
+  (`node ${CLAUDE_PLUGIN_ROOT}/outils/suivi.mjs arreter` ; il s'arrête seul après 12 h, ou 2 h après que tout est fini), sessions filles inutiles.
   Le compte rendu final liste ce qui tourne encore et pourquoi. *(mesuré : trois corrections pour un banc ou un `caffeinate` oublié)*
 - **Aller jusqu'au résultat exploitable** : un lien, un fichier, une page — et vérifier que l'utilisateur a
   **la bonne version** (fichier remplacé, page rechargée).
@@ -279,7 +326,7 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 
 > Tu es l'orchestratrice de ce chantier (skill `orchestrateur`). But : <…>. Critère de fin : <…>.
 > Fais le diagnostic de départ, annonce le plan en étapes puis le tableau des sessions
-> (modèle · effort · pourquoi · critère de fin), lance-les **toutes dans ce tour**, suis avec `/point 5`,
+> (modèle · effort · pourquoi · critère de fin), lance-les **toutes dans ce tour**, démarre le suivi (`suivi.mjs demarrer`, bureau, `Monitor` sur `guetter`) sans minuterie de point,
 > vérifie chaque rapport, relance toute session au-delà de 300 000 jetons avec une note de reprise,
 > arrête tout ce que tu as lancé à la fin. Va jusqu'au résultat exploitable.
 
