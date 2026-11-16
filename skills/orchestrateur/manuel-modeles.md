@@ -1,5 +1,7 @@
 # Manuel des modèles (évaluations publiées, relevé du 13/11/2026)
 
+> **Depuis la V3 (16/11/2026, décision L-13), la table de routage est `references/routage-v3.md`** (résumé : `SKILL.md` § 3) : 16 usages, chacun avec construit · vérifie · escalade. Ce manuel garde le détail des chiffres du 13/11. Chaque section porte ci-dessous **REMPLACÉ PAR LA V3**, **CONFIRMÉ PAR LA V3** ou **HORS TABLE** ; une ligne « Modèle · effort » marquée REMPLACÉ ne se suit plus. Règle V3 : Fable ne construit jamais (il vérifie et escalade), jamais Astra, Argon ni l'effort max.
+
 ## Comment lire ce manuel
 
 Le manuel dit, pour 11 usages : **modèle · effort recommandé**, ce que les évaluations publiques donnent (chiffre, URL, date), l'alternative moins chère, ce qu'il faut éviter. Il alimente l'orchestrateur V3 ; le banc v1 (nos propres mesures) vient après lui et le corrige (dernière section).
@@ -16,6 +18,8 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 1. Code
 
+> **REMPLACÉ PAR LA V3** : code spécifié et testé → Haiku · medium (tests, puis Sonnet · low) ; code de dépôt ou difficile → Sonnet · medium, Opus · medium vérifie, Fable · high escalade. « Sonnet · xhigh » ne se suit plus.
+
 - **Modèle · effort : Claude Sonnet 5.5 · xhigh.**
 - Ce que ça donne : 95,79 ± 1,30 % sur SWE-bench Pro V2 (xhigh, mini-swe-agent), https://labs.scale.com/leaderboard/swe_bench_pro_public_v2?tab=full (consulté le 13/11/2026, sans date de mesure). 70,6 % sur Terminal-Bench 4.0, https://www.anthropic.com/claude-sonnet-5-5 (28/09/2026), contre 66,4 % pour Opus 5.5 à xhigh, https://www.anthropic.com/claude-opus-5-5 (22/09/2026) : Sonnet n'est pas derrière Opus en code.
 - Effort : FrontierCode 1.1 (Main) donne 52,1 % à xhigh et 46,2 % à max pour Sonnet 5.5, https://www.anthropic.com/claude-sonnet-5-5 (28/09/2026) : monter à max baisse le score.
@@ -26,6 +30,8 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 2. Raisonnement et usage d'outils (orchestrer, appeler des outils)
 
+> **REMPLACÉ PAR LA V3** : raisonnement et maths → GPT Sol · high (repli Opus · high), Opus · high vérifie ; agents et terminal → Sonnet · high, Opus · medium vérifie. Opus ne « décide » plus seul : il vérifie.
+
 - **Modèle · effort : Claude Opus 5.5 · high.**
 - Ce que ça donne : ARC-AGI-2 par effort pour Opus 5.5 : low 70,1 %, medium 87,5 %, **high 93,3 %**, xhigh 92,5 %, max 91,7 %, https://arcprize.org/results/anthropic-claude-opus-5-5 (page consultée le 13/11/2026). Le meilleur effort est high ; au-delà le score baisse.
 - Outils : MCP Atlas, Opus 5.5 85,40 ± 2,20, https://labs.scale.com/leaderboard/mcp_atlas (la page se dit mise à jour le 08/04/2026 alors qu'elle liste des modèles de septembre 2026 : date à prendre avec réserve). Sonnet 5.5, Fable 5.2 et les GPT-6 n'y figurent pas : N/D.
@@ -35,12 +41,16 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 3. Rédaction
 
+> **REMPLACÉ PAR LA V3** : rédaction qui doit plaire → Gemini Flash · high (repli Sonnet · medium), Opus · high vérifie ; sous contraintes → Sonnet · medium, script de comptage puis Opus · medium.
+
 - **Modèle · effort : Claude Opus 5.5 · high.**
 - Ce que ça donne : Arena Creative Writing, 1517 ± 11 (rang 2, high), https://arena.ai/leaderboard/chat/text/creative-writing (11/11/2026). Les modèles de comparaison sur la même page : Gemini 3.8 Flash high 1488 ± 7 (préliminaire), Sonnet 5.5 xhigh 1464 ± 12, GPT-6 Astra 1451, GPT-6.1 Sol 1449, GPT-6 Luna 1408.
 - Alternative moins chère : Gemini 3.8 Flash · high (1488, préliminaire) ou Sonnet 5.5 · xhigh (1464).
 - À éviter : les GPT-6 pour le style (de 1408 à 1451, derrière les Claude et les Gemini de la page). Argon est premier (1523 ± 10) : non retenu (quota). Haiku 5.5, Fable 5.2 et GPT-6.1 Terra ne figuraient pas dans la page lue : N/D. EQ-Bench n'a pas été recoupé : les valeurs données ne sont pas reprises.
 
 ## 4. Veille et recherche web
+
+> **CONFIRMÉ PAR LA V3** : GPT Sol · medium avec recherche (repli Sonnet · medium) ; en plus, Claude relit chaque chiffre à sa page et Opus · medium escalade.
 
 - **Modèle · effort : GPT-6.1 Sol · medium avec `--search`** (verdict du comparatif Gemini/GPT mené ici : `veille-gemini-contre-gpt.md`).
 - Ce que ça donne : Search Arena, GPT-6.1 Sol 1230 ± 8 (max), Claude Opus 5.5 1213 ± 7 (medium), https://arena.ai/leaderboard/chat/search (08/11/2026). Aucun Gemini 4 ni Haiku sur cette page. Firecrawl Search Lift avec Alexandria : Opus 5.5 79,0, Sol 77,9, Haiku 5.5 61,9, https://www.firecrawl.dev/benchmarks/search-lift (10/11/2026) ; aucun Gemini.
@@ -49,12 +59,16 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 5. Très long contexte
 
+> **REMPLACÉ PAR LA V3** : GPT Sol · high par recherche dans le fichier, script puis Gemini Flash · high ; confiance faible (banc maison seulement).
+
 - **Modèle · effort : non établi par des évaluations publiques lues.** Aucun score MRCR, RULER ni Fiction.LiveBench n'a pu être recoupé : GPT n'en retrouve qu'un (Astra, page 403) et Gemini en cite sans source lisible. Résultat N/D, jamais 100 %.
 - Ce que ça donne : fenêtres annoncées de 1 million de jetons pour les Claude 5.5 et de 1,05 million pour les GPT-6 par les deux rendus ; non recoupé (pages https://platform.claude.com/docs/en/models/overview et https://developers.openai.com/api/docs/models/gpt-6.1-sol non relues).
 - Repli mesuré par nous : le banc v1 (section « Contradictions ») : GPT-6.1 Sol high par recherche dans le fichier, Gemini Flash high pour lire tout le texte.
 - À éviter : se fier à une fenêtre annoncée comme à une longueur utile.
 
 ## 6. Vision et multimédia (lire une image, une vidéo, un son)
+
+> **REMPLACÉ PAR LA V3** : images, documents et rendu → Gemini Flash · low, Opus · high vérifie ; audio → Gemini Flash · low, Haiku vérifie la transcription. « Opus · high pour l'image » ne se suit plus.
 
 - **Modèle · effort : Claude Opus 5.5 · effort high pour l'image ; Gemini 3.8 Flash pour l'audio.** L'effort high n'est pas mesuré publiquement pour l'image.
 - Ce que ça donne : MMMU-Pro, Opus 5.5 88 % (max, arrondi affiché), GPT-6 Astra 87 % (max), https://artificialanalysis.ai/evaluations/mmmu-pro (consultée le 13/11/2026). Les autres modèles n'étaient pas lisibles sur la page.
@@ -64,12 +78,16 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 7. Génération d'images, textures, direction artistique
 
+> **CONFIRMÉ PAR LA V3** : GPT-Image par Sol · medium, Opus · high vérifie sur capture.
+
 - **Modèle · effort : GPT-6.1 Sol · medium qui appelle l'outil GPT-Image.**
 - Ce que ça donne : Arena text-to-image : GPT-Image-2.5 Sunburst 1429 ± 5, GPT-Image-2.6 Sunburst (Medium) 1406 ± 13, GPT-Image-2.5 Flare 1398 ± 5, https://arena.ai/leaderboard/image/text-to-image (12/11/2026). Gemini Nano Banana 2.1 : 1327 ± 9, rang 7, préliminaire (même page).
 - Alternative moins chère : Nano Banana 2.1 (Gemini), 102 points d'Elo sous GPT-Image-2.6 Sunburst medium.
 - À éviter : demander une image raster à Claude (la page https://platform.claude.com/docs/en/build-with-claude/vision décrit l'envoi d'images à Claude, pas leur production ; le banc v1 donne du SVG seulement). À éviter aussi : les modèles texte Gemini 3.8 Flash et Argon pour produire l'image ; aucune évaluation publique de textures ou de direction artistique n'a été trouvée (GenEval n'a de ligne pour aucun des 11 modèles) : ce point reste un jugement par captures.
 
 ## 8. Front-end et animations
+
+> **REMPLACÉ PAR LA V3** : Sonnet · xhigh, Opus · high vérifie, Fable · high escalade. Fable n'est plus « premier choix qualité » : il ne construit jamais.
 
 - **Modèle · effort : Claude Sonnet 5.5 · xhigh** (premier choix qualité : Fable 5.2 · xhigh).
 - Ce que ça donne : WebDev Arena, Fable 5.2 1838 ± 21 (xhigh), Opus 5.5 1815 ± 12 (max), Sonnet 5.5 1772 ± 10 (xhigh) et 1715 ± 8 (high), GPT-6.1 Sol 1743 ± 10 (max), Gemini 4 Hydrogen 1704 ± 14 (high, préliminaire), https://arena.ai/leaderboard/code/webdev (11/11/2026). De high à xhigh, Sonnet gagne 57 points.
@@ -79,6 +97,8 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 9. Données en masse (extraction, tableur, finance)
 
+> **REMPLACÉ PAR LA V3** : données et extraction → GPT Terra · medium (repli Haiku · medium), schéma ou script puis Sonnet · low ; finance et tableur → Sonnet · medium, recalcul puis Opus · medium.
+
 - **Modèle · effort : Claude Haiku 5.5 pour le volume, Sonnet 5.5 pour le contrôle.** Effort non indiqué par Vals sur la page lue.
 - Ce que ça donne : Vals Finance Agent v2.1 : Fable 5.2 69,47 %, Opus 5.5 67,85 %, Argon 67,66 %, Sonnet 5.5 67,28 %, Gemini 3.8 Flash 65,76 %, Haiku 5.5 65,37 %, Hydrogen 65,12 %, Sol 61,82 %, Astra 60,43 %, Luna 56,84 %, Terra 55,96 %, https://www.vals.ai/benchmarks/fabv2-1 (11/11/2026 ; scores non comparables à la v2). Excel Modeling Benchmark v1.1 : Fable 5.2 77,38 %, Sonnet 5.5 75,90 %, Opus 5.5 75,84 %, Hydrogen 75,80 %, Flash 72,87 %, Haiku 5.5 65,48 %, https://www.vals.ai/benchmarks/emb-v1-1 (11/11/2026).
 - Alternative moins chère : Haiku 5.5 sur la finance (2,5 points sous Opus) ; pas sur le tableur (10,4 points sous Sonnet).
@@ -86,12 +106,16 @@ Avertissement général : un score public est mesuré par un éditeur ou un tier
 
 ## 10. Tâches longues autonomes
 
+> **HORS TABLE** : la V3 ne dit rien de plus ; la boucle construire, vérifier, reprendre, escalader (`SKILL.md` § 3 b) borne chaque étape.
+
 - **Modèle · effort : Gemini 4 Hydrogen · high pour la régularité, Claude Sonnet 5.5 pour les jalons de contrôle.** Effort Vending-Bench non indiqué.
 - Ce que ça donne : Vending-Bench 2 (solde final moyen sur une année simulée) : GPT-6 Astra 15 514,70 $ ± 1 074, Hydrogen 14 549,49 $ ± 495, Argon 13 718,16 $ ± 3 100, GPT-6.1 Sol 12 860,61 $ ± 1 043, Sonnet 5.5 11 165,28 $ ± 1 585, https://andonlabs.com/evals/vending-bench-2 (page sans date, consultée le 13/11/2026). Opus 5.5 n'est pas dans les dix premières lignes lues (Opus 5 : 11 181,87 $ ± 2 094).
 - METR (horizon à 50 %) : la page n'a pas été mise à jour depuis le 08/09/2026 (« plus mise à jour ») et ne liste ni Opus 5.5, ni GPT-6, ni Gemini 4, https://metr.org/time-horizons/. Aucun horizon n'est donc publié pour ces modèles. METR précise : l'horizon est la durée de la tâche pour un humain expert, pas la durée de travail de l'agent, et les tâches sont « bien spécifiées » ; au-delà de 16 h, la mesure est jugée peu fiable.
 - À éviter : Argon sur une longue chaîne (écart ± 3 100 $, le plus large du haut de tableau) ; quoi qu'il en soit, Argon est exclu par quota.
 
 ## 11. Petites tâches (tri, résumé, petite modification, note à gabarit)
+
+> **CONFIRMÉ PAR LA V3** : Haiku · medium, contrôle mécanique ou Sonnet · low sur échantillon, escalade Sonnet · medium.
 
 - **Modèle · effort : Claude Haiku 5.5 · medium** (choix économe du banc v1) ; GPT-6 Luna · high si le quota GPT est ouvert.
 - Ce que ça donne : aucune évaluation publique ne mesure ces tâches. Source des chiffres : banc v1 seulement, `ROUTAGE-IA.md (notes de banc de l’auteur)` section 9 (06/11/2026) : haiku-5-5 medium 0,905 à 0,0008 $ par essai ; gpt-6-luna high 0,937 à 0,0012 $.

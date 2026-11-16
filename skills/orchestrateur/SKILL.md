@@ -1,44 +1,49 @@
 ---
 name: orchestrateur
-description: Session « prompt master » qui orchestre un chantier — découpe en étapes, lance de vraies sessions Claude Code (pas seulement des agents) avec pour chacune le modèle et l'effort les plus bas qui suffisent, les suit, les relance quand elles deviennent trop lourdes, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (sessions, agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 3.1.0
+description: Session « prompt master » qui orchestre un chantier — découpe en étapes, fait travailler des sous-agents depuis une seule session (une session séparée seulement si le travail dépasse le tour ou a sa propre branche), choisit pour chacun le modèle et l'effort de la table de routage V3 (le petit construit, le fort vérifie), boucle construire, vérifier, reprendre, escalader, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
+version: 3.2.0
 ---
 
-# Orchestrateur — v3.1.0 du 16/11/2026
+# Orchestrateur — v3.2.0 du 16/11/2026
 
 Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
-206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**.
-Chaque règle marquée *(mesuré)* vient d'un défaut observé ; le chiffre et sa source sont dans `CHANGELOG.md`.
+206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**, et routées depuis le 16/11
+sur les classements publics (décision L-13). Chaque règle marquée *(mesuré)* vient d'un défaut observé ; le chiffre et sa source sont dans `CHANGELOG.md`.
 
+Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 ## 0. Principe
 
-L'orchestratrice **décide, découpe, vérifie**. Les sessions filles **exécutent** et rendent un résumé.
+L'orchestratrice **décide, découpe, vérifie**. Les workers **exécutent** et rendent un résumé.
 La mémoire du chantier vit dans des fichiers (plan, journal, notes de reprise), pas dans le contexte.
 
-**Agent ou session ?** Ce n'est pas la même chose, et les confondre est l'échec n° 1 *(mesuré : 25 demandes
-d'orchestration sur 45 n'ont lancé aucune session ; 8 ont fait des agents à la place)*.
+**Sous-agents d'abord, depuis une seule session** *(décision L-13 du 16/11/2026 ; consigne de l'utilisateur : aller donner son accord dans chaque
+session fille ne marche pas)*. Un sous-agent (outil `Agent`) fait remonter ses demandes d'autorisation dans la conversation principale et n'ajoute
+aucun processus (une session de l'app pèse environ 220 Mo).
 
-| | Agent (outil `Agent`) | Session (outil `start_session`, ou `claude` lancé à part) |
+| | Sous-agent (outil `Agent`) — le défaut | Session (`start_session`, ou `claude` lancé à part) |
 |---|---|---|
 | Vit | le temps du tour, rend un résultat à l'orchestratrice | sa propre conversation, survit au tour |
-| L'utilisateur | ne la voit pas, ne lui parle pas | l'ouvre, la suit, lui parle, l'arrête |
-| Pour | lire, chercher, relever, vérifier : un morceau du travail en cours | une tâche à part entière : une app, une branche, un domaine, un lot |
+| L'utilisateur | n'a qu'une conversation à suivre | doit ouvrir chaque session et y répondre |
+| Pour | lire, chercher, relever, construire, vérifier : un morceau du travail | un travail qui dure **au-delà du tour** ou qui a **sa propre branche** |
 
-Quand l'utilisateur dit « lance des sessions », un agent **ne remplace pas** une session. Si aucune session
-n'est possible ici, le dire en une ligne et prendre l'alternative du § 2 b, jamais basculer en silence.
+**Une session séparée se justifie en une ligne, avant le lancement** : « → session relais — parce que branche à part, plusieurs heures ».
+Sans cette ligne, c'est un sous-agent. Si l'utilisateur écrit en toutes lettres « lance des sessions », une session part : un agent ne la remplace pas
+*(mesuré : 25 demandes d'orchestration sur 45 n'ont lancé aucune session ; 8 ont fait des agents à la place)*. Si aucune session n'est possible ici,
+le dire en une ligne et prendre l'alternative du § 2 b. **Une orchestratrice ne relaie jamais un accord d'écriture** (§ 5).
 
 ## 1. Diagnostic de départ (30 secondes, à chaque orchestration)
 
-1. **Quel moyen de lancer une session existe ici ?** Dans cet ordre :
-   - Application de bureau Claude (onglet Code) : l'outil `mcp__ccd_session__start_session` existe, souvent
-     **différé** : le charger d'abord avec `ToolSearch`, requête `select:mcp__ccd_session__start_session,mcp__ccd_session_mgmt__list_sessions,SendMessage`.
-     S'il n'apparaît que dans la liste des outils différés, il existe : le charger, ne pas conclure qu'il manque.
-   - Terminal (CLI) sans cet outil : lancer des processus `claude` à part (§ 2 b).
-   - Ni l'un ni l'autre : agents en arrière-plan, **en le disant**.
-2. **Annoncer** en une ligne : `Moyen : sessions de l'app` / `Moyen : claude -p en arrière-plan` / `Moyen : agents (pas de session possible ici, parce que …)`.
+1. **Quel moyen ?** Sous-agents d'abord (toujours disponibles). Une session séparée seulement dans le cas du § 0, avec sa ligne de raison, par :
+   - l'application de bureau Claude (onglet Code) : l'outil `mcp__ccd_session__start_session` existe, souvent **différé** : le charger d'abord
+     avec `ToolSearch`, requête `select:mcp__ccd_session__start_session,mcp__ccd_session_mgmt__list_sessions,SendMessage` ; s'il n'apparaît que
+     dans la liste des outils différés, il existe, ne pas conclure qu'il manque ;
+   - sinon, en terminal (CLI), des processus `claude` à part (§ 2 b).
+2. **Annoncer** en une ligne : `Moyen : sous-agents` / `Moyen : sessions de l'app (parce que …)` / `Moyen : claude -p en arrière-plan (parce que …)`.
 3. **Déjà fait ?** Chercher dans les notes et dépôts du projet ; la réponse s'ouvre par « Déjà fait : … » ou « Déjà fait : rien sur … ».
 
-## 2. Lancer une session — le mode d'emploi concret
+## 2. Lancer un agent ou une session — le mode d'emploi concret
+
+Sous-agents d'abord (c) ; a et b seulement dans le cas du § 0 (travail au-delà du tour, ou branche à part), après la ligne qui dit pourquoi.
 
 ### a) Application de bureau (`start_session`)
 
@@ -103,20 +108,10 @@ par vagues, pas par des centaines d'agents.
 
 ### d) Production en série (vidéos, visuels, documents du même format)
 
-Ne jamais faire coder chaque pièce. **Un gabarit, puis des données** *(mesuré le 02/11/2026 sur des vidéos
-TikTok Remotion : 93 654 jetons Sonnet pour une vidéo codée à la main, contre ≈ 52 000 jetons Haiku pour un
-JSON sur gabarit, de meilleure qualité ; le gabarit coûte 136 383 jetons une seule fois, amorti dès la 2e pièce)* :
-1. Une fille Sonnet · medium construit le gabarit, le script de rendu (`--verifier` sans rendu) et un guide
-   court qui sera **le seul contexte** des petits modèles.
-2. Des filles Haiku · medium écrivent les données (une pièce ≈ 2 000 jetons ; le reste est le coût fixe de
-   démarrage, donc **plusieurs pièces par fille**). Elles ne lancent pas le rendu.
-3. Le rendu tourne en script, sans modèle, sous `caffeinate`.
-4. Une fille Sonnet · low contrôle chaque chiffre affiché sur des images extraites, contre la source.
-**Une pièce témoin validée par l'utilisateur avant tout lot** (contrôle, rendu, voix payante) *(mesuré : 0,62 $ de
-contrôle perdus sur un lot rejeté ensuite ; écrire les données en série : 1 fille Sonnet pour 8 pièces = 0,058 $/pièce,
-4 filles Haiku pour 8 = 0,017 $/pièce mais textes plats)*. Les textes qu'un humain écoute vont à Sonnet, pas à Haiku.
-Tout calcul se vérifie par une commande (`node -e`) et sa formule s'affiche *(mesuré : l'essai du gabarit
-affichait 0,357 × 8 000 = 2 856 € en oubliant + 1 395 € du barème)*.
+Ne jamais faire coder chaque pièce : **un gabarit (Sonnet · medium), puis des données (Haiku · medium, plusieurs pièces par fille), rendu par script
+sans modèle, contrôle par Sonnet · low, une pièce témoin validée avant tout lot** *(mesuré le 02/11 : 93 654 jetons pour une vidéo codée à la main contre
+≈ 52 000 sur gabarit)*. Tout calcul se vérifie par une commande. Détail et mesures : `references/production-en-serie.md`.
+
 
 ### e) Déléguer hors Claude (GPT, Gemini)
 
@@ -129,82 +124,81 @@ Le rendu se vérifie comme celui d'une fille : fichier ouvert, test relancé, ca
 
 ## 3. Choisir modèle et effort (à chaque lancement, relance ou changement)
 
-Claude **orchestre, unifie, anime et vérifie** ; le reste va au fournisseur qui le fait le mieux, sur les abonnements.
-Règle : **le plus petit modèle et le plus bas effort qui réussissent**, vérifiés par un critère objectif ;
-monter le **modèle** avant l'**effort**. Juger sur le **gros du travail** (ce que la session lit et répète).
+Source : décision L-13 et table de routage V3 ; **chiffres complets, URL et écarts : `references/routage-v3.md`** ; lignes que la V3 ne remplace pas : `manuel-modeles.md`.
+Règle : **le plus petit modèle qui reste à 3 points du meilleur public construit, un plus fort vérifie, en cas de doute on monte, jamais on ne descend.**
+Les classements publics passent avant nos bancs : un banc ne sert qu'à combler un trou ou à mesurer exactement notre usage.
 
-### Le manuel des modèles
+**La table V3** : construit → vérifie → escalade, avec l'effort ; chiffre public court (confiance forte / moyenne / faible).
 
-Usage → modèle · effort → ce que ça donne. **Public** : évaluation publiée, relue à sa source le 13/11/2026
-(détail, URL et dates : `manuel-modeles.md`). **Maison** : nos bancs (`bancv1/routage.txt`, banc intermodèle, banc de délégation).
-Quand les deux divergent, la tâche décide : **courante → effort bas** (nos bancs saturent : l'effort n'y change rien),
-**dure ou large → effort haut** (public : Opus ARC-AGI-2 low 70,1 → high 93,3 ; au-delà de high, le score baisse).
+| Usage | Construit → vérifie → escalade | Chiffre public |
+|---|---|---|
+| Code spécifié et testé | Haiku · medium → tests, puis Sonnet · low → Sonnet · medium | forte : banc codedur 24/24, 1/7 du prix |
+| Code de dépôt, difficile | Sonnet · medium → Opus · medium → Fable · high | moyenne : SWE-Bench Pro HARD Haiku 52,9, Sonnet 70,6 |
+| Revue de diff | Sonnet · medium → Opus · medium (diffs à risque) → Fable · high | faible : SWE Atlas QnA Sonnet 74,2, Opus 77,4 |
+| Agents et terminal | Sonnet · high → Opus · medium → Fable · high | moyenne : Terminal-Bench 4.1 Sonnet 63,9, Opus = Fable 65,8 |
+| Front et web | Sonnet · xhigh → Opus · high → Fable · high | moyenne : WebDev Arena 1772, 1816, 1826 |
+| Rédaction qui doit plaire | Gemini Flash · high (repli Sonnet · medium) → Opus · high → Opus · high | moyenne : Arena créatif, Flash à 29 Elo d'Opus |
+| Rédaction sous contraintes | Sonnet · medium → script de comptage, puis Opus · medium → Opus · high | moyenne : banc v1 0,948 |
+| Raisonnement, maths | GPT Sol · high (repli Opus · high) → Opus · high → Fable · high | forte : ARC-AGI-2 Sol 91,7, Opus 93,3 |
+| Données, extraction | GPT Terra · medium (repli Haiku · medium) → schéma ou script, puis Sonnet · low → Sol · high | moyenne : LiveBench données Terra 82,3, Haiku 53,1 |
+| Finance, tableur | Sonnet · medium → recalcul, puis Opus · medium → Fable · high | forte : Excel Modeling Sonnet 75,9, Fable 77,4 |
+| Veille web | GPT Sol · medium + recherche (repli Sonnet · medium) → Claude relit chaque chiffre à sa page → Opus · medium | moyenne : Search Arena Sol 1230 |
+| Long contexte | GPT Sol · high (recherche dans le fichier) → script, puis Flash · high → — | faible : banc maison seulement |
+| Images, documents, rendu à vérifier | Gemini Flash · low → Opus · high → Opus · high | moyenne : Arena vision Flash 1293, Opus 1295 |
+| Audio | Gemini Flash · low → Haiku sur la transcription → Gemini Hydrogen · medium | faible : un seul modèle mesuré |
+| Génération d'images | GPT-Image par Sol · medium → Opus · high sur capture → — | forte : 5 premières places de l'Arena image |
+| Petites tâches, tri | Haiku · medium → contrôle mécanique, ou Sonnet · low sur échantillon → Sonnet · medium | moyenne : banc v1 0,905 à 0,0008 $ |
 
-| Usage | Courant (maison) | Dur (public) | Ce que ça donne | À éviter |
-|---|---|---|---|---|
-| Code spécifié et testé : script, algorithme, bug, dépôt jusqu'à 32 fichiers | **Haiku · medium** ; Sonnet · low si aucun test ne vérifie le rendu ; ou **déléguer** à GPT Terra low (0 $ d'API) | Sonnet 5.5 · xhigh | banc codedur du 16/11 (8 tâches dures × 3) : Haiku medium 24/24 à 1,0 pour 0,0077 $, Sonnet low 24/24 pour 0,051 $ (6,6 ×), Haiku low 0,988 · délégation : 48/48 à 1,00 · SWE-bench Pro V2 Sonnet 95,8 %, Haiku 87,2 % | Haiku low sans test qui rattrape (semver 0,94) ; spec floue ou dépôt de plus de 32 fichiers : non mesuré, Sonnet ; `max` (FrontierCode 52,1 → 46,2) |
-| Code : multi-fichiers, revue de diff | Sonnet · medium + seconde relecture GPT Terra | Sonnet 5.5 · xhigh (Fable 5.2 en premier choix qualité) | Terra relit : 7 constats, 16 570 jetons contre 8 et 79 921 pour Sonnet | `gpt-6-luna` pour relire |
-| Décider, concevoir, orchestrer | Opus · medium | Opus 5.5 · high | ARC-AGI-2 high 93,3 % ; n'a battu Sonnet sur aucune des 11 tâches du banc v1 | Opus pour exécuter |
-| Question courte, fait, commande | Haiku · low | — | — | — |
-| Lire, extraire, trier, note à gabarit | Haiku · medium (jamais low pour extraire) | Haiku 5.5 volume, Sonnet contrôle | même note que Sonnet au banc v1, 1/15 du prix | Haiku sur un tableur (−10,4 points sous Sonnet) |
-| Rédaction | Sonnet · low à medium | Opus 5.5 · high | banc v1 : Sonnet medium premier (0,948) · Arena créatif : Opus 1517, Sonnet 1464 | GPT-6 pour le style (1408 à 1451) |
-| Veille, recherche web | **GPT Sol · medium `--search`**, chiffres recoupés par WebFetch | idem | 0 chiffre faux sur 5 questions, contre ≥ 10 pour Gemini Hydrogen ; 1,76 × plus lent | un chiffre Gemini non relu à sa page |
-| Première passe de veille, liste de pages | Gemini Hydrogen · medium | — | 762 s pour 5 questions ; juste sur les classements simples | dépendre d'un chiffre lié à une version ou un effort |
-| Image raster, texture, scène | **GPT Sol** via `codex exec` | GPT-Image (Sunburst) en tête des classements | 9,5/10 contre 7 pour Claude (SVG) | une image raster demandée à Claude |
-| Série d'images, avatar, icône | référence validée puis **GPT Terra** `-i reference` | — | ≈ 35 000 → 15 000 jetons, note 6,3 → 8,2 ; série Lanterne : cohérence 9/10 | relancer sans référence |
-| SVG à cadrage exact | Claude (SVG puis Inkscape) | — | 7,5 contre 7, taille garantie | — |
-| Front-end, animations, intégration | Sonnet · medium | Sonnet 5.5 · xhigh (WebDev 1772) | Lanterne : intégration et animation Claude, juge 7/10 | GPT-6 Luna, Gemini 3.8 Flash (WebDev 1577, 1583) |
-| Captures, comparaison d'images | Sonnet · low (**jamais Haiku**) | Opus 5.5 · high pour l'image | — | Haiku |
-| Données de jeu (quiz, listes) | GPT Terra, faits relus par Claude | — | 8 contre 6,5 ; 9 460 jetons contre 58 976 | — |
-| Données en masse structurées | Haiku · medium ; GPT Luna high si quota GPT ouvert | Haiku volume, Sonnet contrôle | banc v1 masse : Luna high 0,991 | GPT-6 en finance agentique (Luna 56,8) |
-| Tâche longue autonome | étapes de quelques minutes, chacune vérifiée par Claude | Gemini Hydrogen · high pour la régularité | Vending-Bench 2 : Hydrogen ± 495 $, Sonnet ± 1 585 $ ; **aucune mesure publique de durée autonome fiable** | une chaîne de plusieurs heures sans point de contrôle |
-| Très long contexte | n/a | n/a : aucun score MRCR ou RULER recoupé | — | prendre la fenêtre annoncée pour une longueur utile |
-| Bloqué après 2 tentatives | Opus · high (sur accord), puis expliquer l'obstacle | — | — | `max` |
-
-**Gemini 4 Hydrogen au banc v1** (13/11/2026, 153 essais sur 201, juge Sonnet medium ; verdict provisoire, 48 essais manquants faute de quota) : égale les meilleurs en **raisonnement à high** (1,0 ; medium 0,875) et en **web à medium** (0,978) ; égale sans gain en code, masse, contexte (plafonds du banc) ; **perd en veille** (0,794, jusqu'à 178 s) et en image (0,778). Usage : raisonnement ou page web quand le quota Claude est tendu, jamais seul pour la veille ni l'image.
-Jamais Astra (quota), jamais Argon sous 30 % de quota, jamais `max`.
-
-### La chaîne créative type
-
-1. **Gemini** (Hydrogen · medium, recherche web) : veille de tendances et proposition de direction artistique (palette, polices, consigne d'image).
-2. **GPT** : une image de référence (Sol), validée, puis la série avec `-i reference` (Terra ou Sol).
-3. **Claude** : unifie (intègre dans la page, harmonise), anime, puis **vérifie** : captures 1440 et 390, images chargées, pas de défilement horizontal, juge.
-Mesuré une fois (mini-site Lanterne, 13/11/2026, `outils/bancs/delegation/CONCLUSION.md`) : 7/10 au juge, cohérence des images 9/10 ;
-les liens de veille de Gemini sont des redirections Google, à rouvrir. Pas de variante tout-Claude : la chaîne n'est pas prouvée meilleure, elle est la seule à produire des images raster.
-
-### Hors Claude : comment
-
-Par `outils/deleguer.mjs` (§ 2 e, `deleguer.md`) : il refuse au-delà des seuils de quota (Codex semaine > 70 % ou 5 h > 85 % ;
-Gemini 5 h < 25 % ou semaine < 30 % de reste) et note chaque appel dans `~/.cache/orchestration/intermodele/<fournisseur>.jsonl`
-(le bureau et `/orch modeles` le lisent). Avant un lot : `--a-sec`, puis plafond fixé avec l'utilisateur. Un sous-agent Claude paie
-≈ 57 000 jetons de démarrage ; Codex 4 000 à 25 000. Images à la main (sans `codex` sur le poste) : l'orchestratrice écrit des briefs prêts à coller
-(style, fichiers nommés, tailles, ZIP attendu), une fille Sonnet · low contrôle et installe le ZIP. Le volet visuel se propose d'office
-*(consigne de l'utilisateur du 12/11/2026 : « à chaque fois je t'en ai parlé, tu dévies »)*.
-Limites : une répétition au plus par couple (un point d'écart est du bruit), banc de code délégué saturé (tâches trop faciles), Fable non mesuré en orchestratrice.
-
+- **Fable ne construit jamais** : il vérifie en dernier les livrables à fort enjeu (mise en production, document client) et sert d'escalade.
+  **Jamais Astra, Argon ni l'effort max** ; Carbon en option seulement (préliminaire, prix doublé le 01/12).
+- **Hors Claude** : Sol, Terra, Flash, Hydrogen passent par `outils/deleguer.mjs` (§ 2 e, `deleguer.md`), qui refuse au-delà des seuils de
+  quota (Codex semaine > 70 % ou 5 h > 85 % ; Gemini 5 h < 25 % ou semaine < 30 % de reste) ; `--a-sec` avant un lot, plafond fixé avec l'utilisateur.
+  Si le quota refuse, le repli Claude de la table s'applique, annoncé. L'ancienne chaîne créative est dans `references/routage-v3.md`.
+- **Veille** : les classements publics passent avant nos bancs ; **aucun banc sur Fable ni sur Astra sans accord chiffré de l'utilisateur** ;
+  **Gemini cherche, Claude relit chaque chiffre à sa page** *(mesuré le 16/11 : sur 11 classements Gemini en avait 7 exacts ; faux ou introuvable sur OSWorld, HLE, DesignArena, BrowseComp)*.
 - **Garde-fou Opus** : une session qui lit un domaine entier ou répète la même analyse part sur Sonnet.
   *(mesuré : les sessions principales Opus · medium font 66 sessions sur 785 et 75 % du coût.)*
 - **La conversation elle-même** : sur Opus depuis 5 réponses sans rien lancer, et le travail est de l'exécution →
   proposer Sonnet en une ligne (sélecteur de l'app ou `/model sonnet`). Le hook `aiguillage` le rappelle une fois par conversation.
   *(mesuré le 02/11 : 59 conversations Opus sans lancement en 30 jours, 475 $ ; basculer à la 5ᵉ réponse : − 188 $ net, cache réécrit compris.)*
-- **Jamais de modèle par défaut** pour une fille *(mesuré : 26 % des lancements sans `model` ; la fille hérite alors du modèle de l'app, souvent Opus)*.
-- **Montée sur échec** : 1er → corriger le brief, même niveau ; 2e → modèle +1 ; 3e → Opus high, puis
-  expliquer l'obstacle et passer à autre chose. Après 3 réussites vérifiées de suite, essayer le cran en dessous.
-- **Jamais `max`.**
+- **Jamais de modèle par défaut** pour un worker *(mesuré : 26 % des lancements sans `model` ; il hérite alors du modèle de l'app, souvent Opus)*.
+- **Montée sur échec** : la boucle du § 3 b (2 reprises, puis la colonne « escalade »). Après 3 réussites vérifiées de suite, essayer le cran en dessous du constructeur.
 
 **Annonce obligatoire, avant chaque lancement** (dans l'app, le texte écrit juste avant un appel d'outil n'est pas
 enregistré dans la transcription : aucun hook ne peut la contrôler, elle repose sur ce skill), une ligne dans la conversation, même pour un seul agent
 *(mesuré : faite dans 24 % des orchestrations seulement ; le hook `aiguillage` la rappelle si elle manque)* :
 
-> → relais-fichiers — Sonnet · medium — parce que code multi-fichiers vérifiable par `make test` (Opus n'a rien battu au banc, 2× le prix)
+> → relais-fichiers — Sonnet · medium — parce que code de dépôt vérifiable par `make test` (table V3 : Sonnet construit, Opus vérifie)
 
-Pour un lot, le tableau :
+Pour un lot, le tableau (session ou agent · modèle · effort · pourquoi · critère de fin) ; un changement s'annonce `avant → après` avec la raison.
 
-| Session | Modèle · effort | Pourquoi | Critère de fin |
-|---|---|---|---|
-| relais-fichiers | Sonnet · medium | code multi-fichiers, tests automatiques | `make test` vert + envoi réel d'un fichier |
+## 3 b. La boucle construire, vérifier, reprendre, escalader
 
-Un changement s'annonce `avant → après` avec la raison.
+Ce que font les dépôts sérieux (CrewAI, DSPy, RouteLLM, zen-mcp, LiteLLM, étude multi-agent d'Anthropic), borné :
+
+1. **Construire** : le constructeur de la table rend un rapport (5 champs, § 4) et ses fichiers.
+2. **Le contrôle mécanique passe d'abord**, sans modèle : test, schéma, comptage, sonde `--sonde`. Rouge : retour direct au constructeur, le vérificateur n'est pas payé.
+3. **Puis un vérificateur modèle** (colonne « vérifie », un seul juge par chantier). Il ne voit ni les tests cachés ni la solution de référence ; il rend
+   **« accepté » ou « à reprendre »** avec une **consigne autonome**, collable telle quelle chez le constructeur (ce qui manque, la preuve à rapporter, le critère).
+4. **Reprendre** : au plus **2 reprises** par le constructeur, chacune avec la consigne du rejet.
+5. **Escalader** : après 2 reprises, un cran vers la colonne « escalade », **jamais vers la même cible** (même modèle · effort déjà essayé).
+   Si l'escalade échoue : expliquer l'obstacle en français courant, le noter, passer à autre chose (§ 5).
+6. **Garder le meilleur essai** : chaque essai est conservé (fichier, commit, rapport) ; on rend le mieux noté au barème, pas forcément le dernier.
+
+Un modèle ne se juge pas par ce qu'il déclare : le seul signal de confiance mesuré est la probabilité de sa réponse ; sinon test, schéma ou second modèle.
+Fable passe en dernier sur un livrable à fort enjeu. Méthode détaillée du vérificateur : `agents/verificateur.md` (le modèle est celui de la colonne « vérifie », passé à l'appel).
+
+**Gabarit du prompt du vérificateur** (barème fixe, périmètre fermé) :
+
+```
+Tu es le vérificateur (agents/verificateur.md). Périmètre : ce rendu contre ses critères de fin, rien d'autre. Tu ne corriges pas, tu ne refais pas
+le travail, tu ne juges pas un choix de conception, tu ne sors pas des fichiers listés.
+Demande : <une phrase>  Critères de fin : <commande → valeur attendue>  Rendu : <chemins, diff ou rapport>
+Barème fixe, chaque ligne 0 ou 1, preuve vue par toi (commande relancée, fichier ouvert) : C1 le critère de fin est tenu · C2 rien n'a changé
+hors du périmètre · C3 aucune affirmation du rapport n'est fausse ou sans preuve.
+Réponse, rien d'autre : `VERDICT: ACCEPTE` si C1 + C2 + C3 = 3, sinon `VERDICT: A REPRENDRE` ; le barème (C1 x · C2 x · C3 x) ; si A REPRENDRE,
+`CONSIGNE:` 2 à 5 lignes autonomes (ce qui manque, preuve à rapporter, critère à atteindre), sans renvoyer à ce message.
+```
 
 ## 4. Le brief d'une fille
 
@@ -221,11 +215,10 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
 7. **Rapport attendu** : 5 champs — fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle) ;
    non fait ou non vérifié ; décisions prises ; ce qui attend l'humain. Plus une ligne « ce qui contredit le brief ».
 
-**Index de code (CodeGraph et équivalents) : ne pas en installer pour les filles.** Mesuré le 04/11 sur 64 essais
-(Haiku 5.5 · medium, Sonnet 5.5 · low, `outils/bancs/outils-externes/resultats-gros.csv`) : sur un dépôt de 738 fichiers
-comme sur un de 130, mêmes réponses exactes (11/16), mêmes tours (32 et 33), jetons **+19 à +30 %** et coût **+32 à +41 %** selon le calcul (cache écrit : définitions d'outils
-en plus). Un sous-agent ne reçoit pas les instructions MCP : si un index existe déjà, le brief nomme l'outil et colle son bloc,
-sinon la fille l'ignore. Au-delà de 738 fichiers ou pour des questions d'analyse en chaîne : non mesuré.
+**Index de code (CodeGraph et équivalents) : ne pas en installer pour les workers.** Mesuré le 04/11 sur 64 essais
+(`outils/bancs/outils-externes/resultats-gros.csv`) : mêmes réponses (11/16), jetons **+19 à +30 %**, coût **+32 à +41 %**, dépôt de 738 fichiers comme de 130.
+Un sous-agent ne reçoit pas les instructions MCP : si un index existe déjà, le brief nomme l'outil et colle son bloc.
+
 
 **Comment le remplir : `methode-brief.md`** (veille de 23 sources, `references/veille-prompts-2026-11.md`).
 L'essentiel : lire avant de demander ; ne poser des questions que si deux lectures mènent à des livrables
@@ -269,15 +262,12 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
   groupe de tests depuis 20 min, ou qui tourne sans progrès, s'interrompt et se corrige. *(mesuré : correction de l'utilisateur)*
 - **Une remarque de l'utilisateur qui concerne une fille** lui est transmise (`SendMessage`) tout de suite ; l'orchestratrice confirme « transmis à <nom> ».
 - **Une consigne à heure dite** (« à 12 h, passe sur Relais ») s'arme en minuterie ou s'écrit dans le plan avec l'heure ; jamais de mémoire. *(mesuré : « je t'avais pas dit de bosser sur Relais à 12 h ? »)*
-- Le rapport d'une fille **n'est pas une preuve** : ouvrir le diff, relancer le test, regarder la page.
-  **Le vérificateur est le chemin par défaut** (`agents/verificateur.md`, Haiku · medium) : l'orchestratrice ne relit pas elle-même
-  les notes des filles ni ne relance leurs commandes ; les sondes mécaniques (`--sonde`) tournent dans le démon. Elle ne reçoit
-  que « accepté » ou « à reprendre » avec la raison, note le verdict (`suivi.mjs juger --session <id> --verdict accepte|a-reprendre`,
-  le bureau cesse de compter le rapport « à juger ») et garde pour elle les jugements non mécaniques. Un seul vérificateur par chantier,
-  lancé avec les critères de fin de chaque fille, puis continué par `SendMessage` avec chaque rapport ;
-  il relance les commandes, recompte, ouvre les diffs, et rend « accepté » ou « à reprendre » avec la consigne
-  à renvoyer. *(mesuré le 03/11 : 16 défauts semés sur 16 trouvés, 0 fausse alerte sur 8 cas justes, 0,0023 $
-  par vérification ; cas petits, effet plafond possible.)*
+- Le rapport d'un worker **n'est pas une preuve** : ouvrir le diff, relancer le test, regarder la page. **La boucle du § 3 b est le chemin par défaut** :
+  l'orchestratrice ne relit pas elle-même les notes ni ne relance les commandes ; les sondes mécaniques (`--sonde`) tournent dans le démon. Elle ne reçoit
+  que « accepté » ou « à reprendre » avec la consigne, note le verdict (`suivi.mjs juger --session <id> --verdict accepte|a-reprendre`, le bureau
+  cesse de compter le rapport « à juger ») et garde pour elle les jugements non mécaniques. Un seul vérificateur par chantier, lancé avec les critères
+  de fin de chaque worker puis continué par `SendMessage` avec chaque rapport. *(mesuré le 03/11 : 16 défauts semés sur 16 trouvés, 0 fausse alerte sur 8
+  cas justes, 0,0023 $ par vérification ; cas petits, effet plafond possible.)*
 - **Une fille qui attend l'utilisateur** (question ou autorisation) : le hook `attente` l'écrit dans
   `~/.cache/orchestration/attentes/`, le bandeau la compte. L'orchestratrice la présente en carte
   (`questions-visuelles.md`, gabarit `outils/question-carte.html`, ≈ 550 jetons) : la question en mots simples,
@@ -292,23 +282,24 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 - Un obstacle qui résiste à deux tentatives : l'expliquer en français courant, le noter, passer à autre chose.
 - Une remarque de l'utilisateur en cours de route se range dans l'étape qui la couvre ; elle ne rouvre pas l'ordre du plan.
 
-## 6. Poids des sessions : relancer plutôt que grossir
+## 6. Poids des sessions : une note de reprise, puis compacter sur place
 
 *(mesuré : 59 sessions ont dépassé 300 000 jetons de contexte, 20 seulement ont été relancées avec une note ; elles font 76 % du coût total.)*
+Le coût caché est le contexte : une session qui grossit relit tout à chaque tour.
 
-- Avertir à **200 000** jetons ; relancer à **300 000** à la fin de l'étape ; tout de suite à **500 000**. Filles : 200 000.
-- Formule : relancer coûte moins que continuer si `tours restants > 3,3 M / (contexte − 100 000)`.
+- Avertir à **200 000** jetons ; **à 250 000, écrire la note de reprise, puis compacter sur place** (`/compact`) ; tout de suite à **500 000**. Workers : 200 000.
+- **Une session neuve seulement si la tâche change**, et le dire en une ligne (« → session neuve — parce que la tâche passe de … à … ») : elle coûte un processus
+  de plus pour un gain de jetons comparable au compactage *(décision L-13)*.
 - **Note de reprise** (≤ 150 lignes) : but et critère de fin, compteurs avec source, commande de reprise
-  unique, décisions et « ne pas refaire », fichiers, traitements en cours, sessions filles (id, modèle, effort,
-  état), processus de fond, ce qui attend l'humain. La session neuve ne lit que la note et ce qu'elle liste.
-- Le hook `hooks/poids-de-session.mjs` (posé par le plugin) rappelle les seuils automatiquement.
-- **Ce qui ne doit pas grossir le contexte** : le résumé de réveil est borné à 40 lignes ; aucune sortie de journal brute,
-  aucun tableau de point répété. Le démon `suivi.mjs` et ses fichiers survivent à la relance : la note de reprise donne
-  la commande `suivi.mjs demarrer` (elle rattache le même tableau) et le `Monitor` à réarmer.
-- **À 250 000, la note s'écrit d'elle-même** (dans l'app) : `outils/ranger.mjs relance` la pose dans
-  `Journal/Sessions/` du projet, avec le plan, les commits, les fichiers, le reste à faire et le prompt de la session
-  neuve. La session la **complète** (décisions, chiffres avec leur source, pièges), commite, puis propose la relance.
+  unique, décisions et « ne pas refaire », fichiers, traitements en cours, workers (id, modèle, effort,
+  état), processus de fond, ce qui attend l'humain. Après compactage ou en session neuve, on ne relit que la note et ce qu'elle liste.
+- Le hook `hooks/poids-de-session.mjs` (posé par le plugin) rappelle les seuils automatiquement ; dans l'app, `outils/ranger.mjs relance`
+  pose la note dans `Journal/Sessions/` du projet (plan, commits, fichiers, reste à faire), que la session **complète** (décisions, chiffres avec leur source, pièges) et commite.
   *(mesuré le 02/11 : une grosse session sur deux seulement laissait une note quand on comptait sur la consigne.)*
+- **Ce qui ne doit pas grossir le contexte** : le résumé de réveil est borné à 40 lignes ; aucune sortie de journal brute,
+  aucun tableau de point répété. Le démon `suivi.mjs` et ses fichiers survivent au compactage et à la relance : la note donne
+  la commande `suivi.mjs demarrer` (elle rattache le même tableau) et le `Monitor` à réarmer.
+
 
 ## 7. Finir
 
@@ -322,12 +313,19 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
   un changement de code se termine par ses tests : si du code a changé depuis les derniers tests d'un dépôt
   qui en a, le hook refuse une fois la fin de tour et donne la commande. `/retour` ne sert plus qu'à ajouter le prompt et la leçon, quand la session a appris quelque chose qui contredit ce skill.
 
+## Hors du skill, piste : le modèle local (LFM3)
+
+Rien n'est câblé. LFM3-1.7B (Mac, Ollama, 296 cas inventés, 11 682 essais, 16/11/2026) est **fiable sur les questions fermées** (oui/non, langue, ton, doublon, choix d'outil) :
+**96 % de réussite au seuil de probabilité 0,99, sur 47 % des cas** (validation croisée) ; il est **inutilisable pour trier les e-mails** (il suit les ordres cachés ; aucun signal ne marche).
+Pas d'économie face à Haiku (≈ 0,001 $ le tri) : l'intérêt est la vitesse (0,2 s), le hors-ligne, la discrétion. Piste pour l'assistant du Mac mini, pas règle du skill.
+Note d'architecture complète (chemin dans le coffre) : `references/modele-local-lfm3.md`.
+
 ## Prompt de démarrage type
 
 > Tu es l'orchestratrice de ce chantier (skill `orchestrateur`). But : <…>. Critère de fin : <…>.
 > Fais le diagnostic de départ, annonce le plan en étapes puis le tableau des sessions
-> (modèle · effort · pourquoi · critère de fin), lance-les **toutes dans ce tour**, démarre le suivi (`suivi.mjs demarrer`, bureau, `Monitor` sur `guetter`) sans minuterie de point,
-> vérifie chaque rapport, relance toute session au-delà de 300 000 jetons avec une note de reprise,
+> (modèle · effort · pourquoi · critère de fin), lance-les **toutes dans ce tour** (sous-agents d'abord ; une session séparée seulement avec sa ligne de raison, § 0), démarre le suivi (`suivi.mjs demarrer`, bureau, `Monitor` sur `guetter`) sans minuterie de point,
+> boucle construire, vérifier, reprendre, escalader sur chaque rendu (§ 3 b), écris la note de reprise à 250 000 jetons puis compacte sur place,
 > arrête tout ce que tu as lancé à la fin. Va jusqu'au résultat exploitable.
 
 ## Références
