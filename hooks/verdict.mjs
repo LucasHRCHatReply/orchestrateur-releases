@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { creerAnalyse, verdict } from '../outils/extraire.mjs';
+import { creerAnalyse, verdict, famille } from '../outils/extraire.mjs';
 const lireStdin = () => { try { return fs.readFileSync(0, 'utf8'); } catch { return ''; } };
 export const DOSSIER = process.env.ORCH_VERDICTS || path.join(os.homedir(), '.cache', 'orchestration', 'verdicts');
 
@@ -65,6 +65,26 @@ export function commandeDeTests(fichier) {
   return '';
 }
 
+// Retour automatique (23/11/2026) : la matière de la fabrique de skills, ce sont les retours. L'utilisateur ne tape
+// pas /retour ; c'est la session qui l'écrit quand son cas apprend quelque chose. Une seule demande par session,
+// jamais si un retour est déjà écrit, jamais quand le verdict est n/a (rien de vérifié, rien à apprendre).
+// Mesure du 23/11 : 0 ligne dans perfs/*/retours.jsonl depuis le 22/10, malgré 367 sessions relevées.
+export function interet(s, v, banque = { retours: 0, vus: {} }) {
+  if (s.retours > 0 || v.verdict === 'n/a' || !s.humains) return [];
+  const modeles = new Set([...Object.keys(s.modeles || {}), ...(s.agents || []).map(a => famille(a.modele)).filter(m => m && m !== 'autre')]);
+  const principal = Object.entries(s.modeles || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  const r = [];
+  if (modeles.size > 1) r.push(`${modeles.size} modèles Claude (${[...modeles].join(', ')})`);
+  if (s.delegations) r.push(`${s.delegations} délégation(s) hors Claude`);
+  if ((s.sessions || []).length) r.push(`${s.sessions.length} session(s) fille(s)`);
+  if (v.verdict === 'echec') r.push('échec : ce qui a raté vaut un retour');
+  if (v.verdict === 'reussi-apres-correction') r.push('réussi après correction : la correction est la leçon');
+  const peu = [...modeles].filter(m => Object.entries(banque.vus || {}).filter(([k]) => k.endsWith(` · ${m}`)).reduce((t, [, n]) => t + n, 0) < 3);
+  if (peu.length && r.length) r.push(`peu d'exemples pour ${peu.join(', ')}`);
+  if ((banque.retours || 0) < 50 && !r.length && principal) r.push(`la banque a ${banque.retours || 0} retours sur 30 jours (moins de 50) : toute session vérifiée compte`);
+  return r;
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
 try {
   const e = JSON.parse(lireStdin() || '{}');
@@ -88,6 +108,17 @@ try {
       }
     }
     if (!('relance_a' in v) && 'relance_a' in avant) { v.relance_a = avant.relance_a; v.relances = avant.relances; }
+    if (avant.retour_demande) v.retour_demande = avant.retour_demande;
+    // Seulement là où la skill retour existe (le dépôt privé, pas le plugin public qui ne l'embarque pas).
+    const skillRetour = fs.existsSync(new URL('../skills/retour/SKILL.md', import.meta.url));
+    if (!sortie && skillRetour && !e.stop_hook_active && !v.retour_demande && process.env.ORCH_RETOUR_AUTO !== '0') {
+      let banque; try { banque = (await import('../outils/candidats-skills.mjs')).analyser(); } catch { banque = { retours: 0, vus: {} }; }
+      const pourquoi = interet(s, v, banque);
+      if (pourquoi.length) {
+        v.retour_demande = new Date().toISOString();
+        sortie = JSON.stringify({ decision: 'block', reason: `Retour automatique : ce cas nourrit la fabrique de skills (${pourquoi.join(' ; ')}). Sans rien demander à l'utilisateur, suis la skill /retour : une ligne par tâche confiée à un modèle dans perfs/<compte>/retours.jsonl, verdict ${v.verdict} (${v.critere}), prompt généralisé sans nom de client ni URL interne, champ "skill" si une skill de métier a servi, "source":"auto" ; commit et push. Puis termine en une ligne : « Retour partagé : … ».` });
+      }
+    }
     fs.writeFileSync(cible + '.tmp', JSON.stringify(v) + '\n'); fs.renameSync(cible + '.tmp', cible);
     if (sortie) process.stdout.write(sortie);
   }

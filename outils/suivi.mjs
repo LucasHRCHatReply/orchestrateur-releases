@@ -11,7 +11,7 @@
 // Commandes :
 //   demarrer [--orchestration id] [--session id]… [--fond nom=journal]… [--sonde 'nom=commande=>attendu']… [--depot chemin]… [--intervalle s]
 //   ajouter  (mêmes options)          arreter          etat          tableau          point          resume [--sans-marquer]
-//   guetter [--fins]                  juger --session id --verdict accepte|a-reprendre
+//   guetter [--fins]                  juger --session id --verdict accepte|a-reprendre|a-l-humain [--cause c]
 //   boucle  (le démon lui-même)
 import fs from 'node:fs';
 import os from 'node:os';
@@ -32,6 +32,8 @@ export const SEUILS = {
   attenteMin: Number(process.env.ORCH_ATTENTE_MIN) || 10,        // attente de l'utilisateur avant le téléphone
   telephoneMin: 5,                                               // jamais deux messages en moins de…
 };
+// Les causes d'un « à reprendre » (agents/verificateur.md) : la reprise ne change que ce composant du brief.
+export const CAUSES = ['contexte', 'tache', 'contrainte', 'format', 'section', 'coordination', 'capacite', 'outil'];
 const ATTENTE_TYPES = new Set(['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input']);
 const ACTIVITE = new Set(['PostToolUse', 'PostToolUseFailure', 'UserPromptSubmit', 'Stop', 'SessionStart']);
 // Un dernier message qui demande un accord ou pose une question : la fille attend l'utilisateur.
@@ -334,6 +336,7 @@ function options(a) {
     else if (a[i] === '--fins') o.fins = true;
     else if (a[i] === '--sans-marquer') o.sansMarquer = true;
     else if (a[i] === '--verdict') { o.verdict = v; i++; }
+    else if (a[i] === '--cause') { o.cause = v; i++; }
   }
   o.orchestration ||= process.env.ORCH_ORCHESTRATION || (process.env.CLAUDE_CODE_ENTRYPOINT === 'claude-desktop' && process.env.CLAUDE_CODE_SESSION_ATTENDED !== '0' && process.env.CLAUDE_CODE_HOST_SESSION_ID) || process.env.CLAUDE_CODE_SESSION_ID;
   return o;
@@ -388,8 +391,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === fs.realpathSync(proces
     console.log(p ? `suivi arrêté (pid ${p})` : 'suivi déjà arrêté');
   } else if (cmd === 'guetter') await guetter(orch, o.fins);
   else if (cmd === 'juger') {
-    const s = o.sessions[0]; if (!s || !['accepte', 'a-reprendre'].includes(o.verdict)) { console.log('usage : juger --session id --verdict accepte|a-reprendre'); process.exit(1); }
-    const f = path.join(dossier, 'verdicts.json'); const v = lireJSON(f, {}); v[s] = { verdict: o.verdict, t: new Date().toISOString() }; ecrireAtom(f, JSON.stringify(v)); console.log(`verdict noté : ${s} ${o.verdict}`);
+    const s = o.sessions[0]; if (!s || !['accepte', 'a-reprendre', 'a-l-humain'].includes(o.verdict)) { console.log('usage : juger --session id --verdict accepte|a-reprendre|a-l-humain [--cause c]'); process.exit(1); }
+    const f = path.join(dossier, 'verdicts.json'); const v = lireJSON(f, {}); if (o.cause && !CAUSES.includes(o.cause)) { console.log(`cause inconnue : ${o.cause} (${CAUSES.join(', ')})`); process.exit(1); }
+    v[s] = { verdict: o.verdict, ...(o.verdict === 'a-reprendre' && o.cause ? { cause: o.cause } : {}), t: new Date().toISOString() }; ecrireAtom(f, JSON.stringify(v)); console.log(`verdict noté : ${s} ${o.verdict}${o.cause ? ' · ' + o.cause : ''}`);
   } else {
     const T = lireTableau(orch);
     if (!T) { console.log(`aucun tableau pour ${orch} : node ${MOI} demarrer --orchestration ${orch}`); process.exit(0); }

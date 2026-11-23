@@ -1,16 +1,15 @@
 ---
 name: orchestrateur
 description: Session « prompt master » qui orchestre un chantier — découpe en étapes, fait travailler des sous-agents depuis une seule session (une session séparée seulement si le travail dépasse le tour ou a sa propre branche), choisit pour chacun le modèle et l'effort de la table de routage V3 (le petit construit, le fort vérifie), boucle construire, vérifier, reprendre, escalader, et rend un résultat qu'on peut ouvrir. À utiliser automatiquement dès qu'on demande de lancer, déléguer, répartir ou faire faire du travail (agents, sous-tâches, « en parallèle », « lance les trois »), et quand on dit « orchestre », « prompt master », « /orchestrateur ». Chaque lancement s'annonce en une ligne : modèle · effort — parce que …
-version: 3.2.0
+version: 4.0.0
 ---
 
-# Orchestrateur — v3.2.0 du 16/11/2026
+# Orchestrateur — v4.0.0 du 23/11/2026
 
 Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 206 essais modèle × effort) puis **corrigées sur 785 sessions mesurées du 20 au 29/10/2026**, et routées depuis le 16/11
 sur les classements publics (décision L-13). Chaque règle marquée *(mesuré)* vient d'un défaut observé ; le chiffre et sa source sont dans `CHANGELOG.md`.
 
-Ce skill condense des règles établies sur de vrais chantiers (migration de 20 sites, 335 pages relues,
 ## 0. Principe
 
 L'orchestratrice **décide, découpe, vérifie**. Les workers **exécutent** et rendent un résumé.
@@ -44,6 +43,12 @@ le dire en une ligne et prendre l'alternative du § 2 b. **Une orchestratrice ne
 ## 2. Lancer un agent ou une session — le mode d'emploi concret
 
 Sous-agents d'abord (c) ; a et b seulement dans le cas du § 0 (travail au-delà du tour, ou branche à part), après la ligne qui dit pourquoi.
+
+**Fondation avant le parallèle.** Quand plusieurs filles parallèles partent d'une même source (extraction, liste des changements, schéma, gabarit),
+cette source est une **étape de fondation** nommée dans le plan : une seule fille la produit, son contrôle mécanique passe (comptage, schéma validé,
+commande), et les filles parallèles ne partent qu'après, avec le chemin du fichier de fondation dans leur brief. Une fondation ratée se reprend seule,
+sans relancer les filles ; un « à reprendre » de cause `coordination` chez une fille renvoie d'abord à la fondation (§ 3 b). C'est la pièce témoin du § 2 d
+appliquée au découpage *(à mesurer : part des ratés de cause coordination, avant et après)*.
 
 ### a) Application de bureau (`start_session`)
 
@@ -143,10 +148,12 @@ Les classements publics passent avant nos bancs : un banc ne sert qu'à combler 
 | Données, extraction | GPT Terra · medium (repli Haiku · medium) → schéma ou script, puis Sonnet · low → Sol · high | moyenne : LiveBench données Terra 82,3, Haiku 53,1 |
 | Finance, tableur | Sonnet · medium → recalcul, puis Opus · medium → Fable · high | forte : Excel Modeling Sonnet 75,9, Fable 77,4 |
 | Veille web | GPT Sol · medium + recherche (repli Sonnet · medium) → Claude relit chaque chiffre à sa page → Opus · medium | moyenne : Search Arena Sol 1230 |
+| Veille web courante, 0 jeton | qwen3.5:4b sur le Mac mini (`outils/veille-locale.sh`) → Opus · medium relit chaque chiffre à sa page → la ligne du dessus | faible : banc maison, 3 questions, 0,48 contre 0,43 au 9b, 2 × plus rapide |
 | Long contexte | GPT Sol · high (recherche dans le fichier) → script, puis Flash · high → — | faible : banc maison seulement |
 | Images, documents, rendu à vérifier | Gemini Flash · low → Opus · high → Opus · high | moyenne : Arena vision Flash 1293, Opus 1295 |
 | Audio | Gemini Flash · low → Haiku sur la transcription → Gemini Hydrogen · medium | faible : un seul modèle mesuré |
 | Génération d'images | GPT-Image par Sol · medium → Opus · high sur capture → — | forte : 5 premières places de l'Arena image |
+| Écriture en masse (CMS, base, API) | Sonnet · medium + script de contrôle → Opus · medium, une fois sur les sorties brutes → Fable · high si irréversible | mesuré le 18/11 : 103 pages ESGI, essai sur 1 page puis lot, contrôle 103/103 |
 | Petites tâches, tri | Haiku · medium → contrôle mécanique, ou Sonnet · low sur échantillon → Sonnet · medium | moyenne : banc v1 0,905 à 0,0008 $ |
 
 - **Fable ne construit jamais** : il vérifie en dernier les livrables à fort enjeu (mise en production, document client) et sert d'escalade.
@@ -157,6 +164,7 @@ Les classements publics passent avant nos bancs : un banc ne sert qu'à combler 
 - **Veille** : les classements publics passent avant nos bancs ; **aucun banc sur Fable ni sur Astra sans accord chiffré de l'utilisateur** ;
   **Gemini cherche, Claude relit chaque chiffre à sa page** *(mesuré le 16/11 : sur 11 classements Gemini en avait 7 exacts ; faux ou introuvable sur OSWorld, HLE, DesignArena, BrowseComp)*.
 - **Garde-fou Opus** : une session qui lit un domaine entier ou répète la même analyse part sur Sonnet.
+  Un agent fort qui relit les mêmes fichiers une 2ᵉ fois sans contrôle mécanique entre-temps : arrêt, on écrit le contrôle *(mesuré le 18/11 : 4 relectures du code avant toute écriture, ≈ 50 min au lieu de ≈ 10)*.
   *(mesuré : les sessions principales Opus · medium font 66 sessions sur 785 et 75 % du coût.)*
 - **La conversation elle-même** : sur Opus depuis 5 réponses sans rien lancer, et le travail est de l'exécution →
   proposer Sonnet en une ligne (sélecteur de l'app ou `/model sonnet`). Le hook `aiguillage` le rappelle une fois par conversation.
@@ -177,11 +185,17 @@ Pour un lot, le tableau (session ou agent · modèle · effort · pourquoi · cr
 Ce que font les dépôts sérieux (CrewAI, DSPy, RouteLLM, zen-mcp, LiteLLM, étude multi-agent d'Anthropic), borné :
 
 1. **Construire** : le constructeur de la table rend un rapport (5 champs, § 4) et ses fichiers.
-2. **Le contrôle mécanique passe d'abord**, sans modèle : test, schéma, comptage, sonde `--sonde`. Rouge : retour direct au constructeur, le vérificateur n'est pas payé.
-3. **Puis un vérificateur modèle** (colonne « vérifie », un seul juge par chantier). Il ne voit ni les tests cachés ni la solution de référence ; il rend
-   **« accepté » ou « à reprendre »** avec une **consigne autonome**, collable telle quelle chez le constructeur (ce qui manque, la preuve à rapporter, le critère).
-4. **Reprendre** : au plus **2 reprises** par le constructeur, chacune avec la consigne du rejet.
-5. **Escalader** : après 2 reprises, un cran vers la colonne « escalade », **jamais vers la même cible** (même modèle · effort déjà essayé).
+2. **Le contrôle mécanique passe d'abord**, sans modèle, et **s'écrit avant le travail** : test, schéma, comptage, sonde `--sonde`. Rouge : retour direct au constructeur, le vérificateur n'est pas payé. Si le critère de fin tient dans une commande oui/non, aucun vérificateur modèle ne relit le code avant l'essai.
+   **2 bis. Écriture en masse (N > 1)** : sauvegarde, retour en arrière prouvé à blanc, essai sur 1 élément, contrôle, lot, contrôle. Réutiliser le script déjà éprouvé plutôt que d'en réécrire un.
+3. **Puis un vérificateur modèle** (colonne « vérifie », un seul juge par chantier), **selon le risque** : écriture annulable (préprod, sauvegarde, retour prouvé) → un seul passage, à la fin, sur les **sorties brutes** du contrôle, ou tout de suite si un contrôle est rouge ; écriture qui ne se défait pas (production, document client, suppression) → avant et après. **Au plus une relecture de code avant écriture.** Il ne voit ni les tests cachés ni la solution de référence ; il rend
+   **« accepté », « à reprendre » ou « à l'humain »** avec une **consigne autonome**, collable telle quelle chez le constructeur (ce qui manque, la preuve à rapporter, le critère),
+   et, si « à reprendre », **une cause** : `contexte`, `tache`, `contrainte`, `format`, `section`, `coordination`, `capacite` ou `outil` (table dans `agents/verificateur.md`).
+   Le barème a quatre lignes : la **complétude** (C4) se contrôle à part de l'exactitude (C3), en listant puis en cochant les parties attendues, car un juge repère mal une absence.
+   **« À l'humain »** : ce qu'aucun modèle ne peut lever (affirmation qui engage sans source fournie, sujet client ou réglementé, action qui ne se défait pas). Cela va dans « ce qui attend l'humain », sans reprise ni escalade. *(4.0.0 : cas « Revue : approuver » 0/4 avant, 2/2 après, banc du vérificateur)*
+4. **Reprendre** : au plus **2 reprises** par le constructeur, chacune avec la consigne du rejet. **La reprise ne change que le composant de la cause**,
+   au même modèle : un contexte trop mince se complète, il ne se paie pas en Opus. La cause se note : `suivi.mjs juger --session <id> --verdict a-reprendre --cause <cause>`.
+5. **Escalader** : un cran vers la colonne « escalade » **tout de suite si la cause est `capacite`**, sinon après 2 reprises ; **jamais vers la même cible** (même modèle · effort déjà essayé).
+   Une cause `outil` ne monte pas : on lève l'obstacle.
    Si l'escalade échoue : expliquer l'obstacle en français courant, le noter, passer à autre chose (§ 5).
 6. **Garder le meilleur essai** : chaque essai est conservé (fichier, commit, rapport) ; on rend le mieux noté au barème, pas forcément le dernier.
 
@@ -194,10 +208,17 @@ Fable passe en dernier sur un livrable à fort enjeu. Méthode détaillée du v�
 Tu es le vérificateur (agents/verificateur.md). Périmètre : ce rendu contre ses critères de fin, rien d'autre. Tu ne corriges pas, tu ne refais pas
 le travail, tu ne juges pas un choix de conception, tu ne sors pas des fichiers listés.
 Demande : <une phrase>  Critères de fin : <commande → valeur attendue>  Rendu : <chemins, diff ou rapport>
+Règles du métier : <les règles de la demande, s'il y en a ; sinon « aucune »>
 Barème fixe, chaque ligne 0 ou 1, preuve vue par toi (commande relancée, fichier ouvert) : C1 le critère de fin est tenu · C2 rien n'a changé
-hors du périmètre · C3 aucune affirmation du rapport n'est fausse ou sans preuve.
-Réponse, rien d'autre : `VERDICT: ACCEPTE` si C1 + C2 + C3 = 3, sinon `VERDICT: A REPRENDRE` ; le barème (C1 x · C2 x · C3 x) ; si A REPRENDRE,
-`CONSIGNE:` 2 à 5 lignes autonomes (ce qui manque, preuve à rapporter, critère à atteindre), sans renvoyer à ce message.
+hors du périmètre · C3 aucune affirmation du rapport n'est fausse ou sans preuve, ni contredite par le rapport lui-même · C4 complétude :
+liste d'abord les parties de la demande (la plus importante en premier), puis coche chacune dans le rendu ; une partie absente qui change
+la décision vaut 0.
+Réponse, rien d'autre : `VERDICT: ACCEPTE` si C1 + C2 + C3 + C4 = 4 ; `VERDICT: A L'HUMAIN` si le seul défaut est hors de portée d'un modèle
+(affirmation qui engage sans source fournie, sujet client ou réglementé, action qui ne se défait pas), suivi de `QUESTION:` en 1 à 3 lignes ;
+sinon `VERDICT: A REPRENDRE` ; le barème (C1 x · C2 x · C3 x · C4 x) ; si A REPRENDRE,
+`CAUSE:` une seule parmi contexte · tache · contrainte · format · section · coordination · capacite · outil · poids · perime · attente (en cas de doute, une cause du
+brief plutôt que capacite), puis `CONSIGNE:` 2 à 5 lignes autonomes sur cette cause seule (ce qui manque, preuve à rapporter, critère à atteindre),
+sans renvoyer à ce message.
 ```
 
 ## 4. Le brief d'une fille
@@ -205,6 +226,7 @@ Réponse, rien d'autre : `VERDICT: ACCEPTE` si C1 + C2 + C3 = 3, sinon `VERDICT:
 Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordre :
 1. **But** en une phrase et **critère de fin vérifiable** (commande, test, comptage, capture).
 2. **Zone** : dépôt, dossier, fichiers ; ce qu'elle ne doit pas toucher (fichiers d'une autre fille).
+   Une fille parallèle sait aussi ce que traitent les autres, en une ligne par fille, pour ne pas refaire leur travail. *(4.0.0 : 18/18 au banc du brief)*
 3. **Déjà décidé / ne pas refaire.**
 4. **Conditions d'arrêt** dites par l'utilisateur (« arrête-toi une fois publié », « avant 18 h »).
 5. **Processus de fond** : tout banc, serveur, `caffeinate`, surveillance qu'elle lance, elle l'arrête à la fin et le liste dans son rapport.
@@ -214,6 +236,11 @@ Une session neuve ne sait **que** ce que dit son brief. Il contient, dans l'ordr
    Ne fais pas de point toi-même : l'écran le tient. » Le compteur d'outils ne dit pas l'avancement ; ces lignes, si.
 7. **Rapport attendu** : 5 champs — fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle) ;
    non fait ou non vérifié ; décisions prises ; ce qui attend l'humain. Plus une ligne « ce qui contredit le brief ».
+8. **Le droit de ne pas savoir** (une ligne à coller) : « Ce que les sources fournies ne couvrent pas s'écrit `n/a — non couvert`, jamais deviné ;
+   un chiffre sort d'une commande, pas de la prose. » *(4.0.0 : cas 28 et 29 du banc du vérificateur justes)*
+
+Un brief écrit dans un fichier passe `node outils/brief.mjs <fichier>` avant le départ (`--parallele` pour une fille parmi d'autres) :
+rôle, but, critère de fin en commande, zone, rapport à 5 champs. Rouge : on complète le brief, la fille ne part pas. *(4.0.0 : 18/18 briefs complets passent, 0/20 incomplets)*
 
 **Index de code (CodeGraph et équivalents) : ne pas en installer pour les workers.** Mesuré le 04/11 sur 64 essais
 (`outils/bancs/outils-externes/resultats-gros.csv`) : mêmes réponses (11/16), jetons **+19 à +30 %**, coût **+32 à +41 %**, dépôt de 738 fichiers comme de 130.
@@ -230,9 +257,11 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 
 ## 5. Pendant
 
-- **Le bandeau** (extension de l'app, `mod/`) se tient replié au-dessus de la saisie ; quand le suivi tourne, il porte la ligne
-  vivante du démon (« ◎ 5 sessions · 2 travaillent · 2 vous attendent · 1 rapport à juger · 11 h 23 ») ;
-  un clic montre qui travaille, qui attend, le contexte et le coût, et « Bureau ↗ » ouvre `/sessiondesk`.
+- **Le bandeau** (extension de l'app, branchée à l'installation) se tient replié au-dessus de la saisie ;
+  il porte la ligne vivante du démon quand le suivi tourne (« ◎ 5 sessions · 2 travaillent · 2 vous attendent · 1 rapport à juger · 11 h 23 »),
+  l'étape du plan affiché (« Étape 2/5 · … », lue dans `update_plan`) et l'outil en cours. Un clic montre le plan entier, les agents
+  lancés avec modèle · effort, qui attend, le contexte et le coût ; « Bureau ↗ » ouvre `/sessiondesk`. Il remplace le plugin
+  whats-agent-doing : ne pas installer les deux.
 - **`/orch`** donne à tout moment le tableau de bord de l'orchestration (sessions, agents, poids, coût, règles tenues ✓/✗) ; s'en servir pour le point et avant le compte rendu final.
 - **Le suivi couvre les sous-agents d'abord, les sessions ensuite** : chaque appel d'outil d'un agent arrive au hook avec son
   `agent_id`, `SubagentStart`/`SubagentStop` le bornent, et le tableau donne une carte par agent (description, modèle, dernière
@@ -249,7 +278,7 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
   | un agent en arrière-plan finit | l'outil (`<task-notification>`) | lit son résultat, le fait vérifier, juge |
   | une fille finit un tour | l'app (`<side-sessions-event>`) ; en CLI `guetter --fins` | lit le rapport, le fait vérifier, juge |
   | une fille attend l'utilisateur | hooks `etat` et `attente`, `guetter` | une ligne : qui, quoi, le lien du bureau ; rien de récurrent ensuite |
-  | seuil : silence 15 min, même action 5 fois, contexte > 200 000 | `suivi.mjs`, `guetter` | un tour : corriger ou arrêter la fille |
+  | seuil : silence 15 min, même action 5 fois, contexte > 200 000, vérificateur actif 10 min sans écriture ni commande | `suivi.mjs`, `guetter` | un tour : corriger ou arrêter la fille |
   | heure dite par l'utilisateur | minuterie **ponctuelle**, écrite aussi dans le plan et la note de reprise | fait la tâche |
   | rien de tout cela | — | **aucun tour** |
 
@@ -264,7 +293,7 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 - **Une consigne à heure dite** (« à 12 h, passe sur Relais ») s'arme en minuterie ou s'écrit dans le plan avec l'heure ; jamais de mémoire. *(mesuré : « je t'avais pas dit de bosser sur Relais à 12 h ? »)*
 - Le rapport d'un worker **n'est pas une preuve** : ouvrir le diff, relancer le test, regarder la page. **La boucle du § 3 b est le chemin par défaut** :
   l'orchestratrice ne relit pas elle-même les notes ni ne relance les commandes ; les sondes mécaniques (`--sonde`) tournent dans le démon. Elle ne reçoit
-  que « accepté » ou « à reprendre » avec la consigne, note le verdict (`suivi.mjs juger --session <id> --verdict accepte|a-reprendre`, le bureau
+  que « accepté » ou « à reprendre » avec la consigne, note le verdict (`suivi.mjs juger --session <id> --verdict accepte|a-reprendre [--cause …]`, le bureau
   cesse de compter le rapport « à juger ») et garde pour elle les jugements non mécaniques. Un seul vérificateur par chantier, lancé avec les critères
   de fin de chaque worker puis continué par `SendMessage` avec chaque rapport. *(mesuré le 03/11 : 16 défauts semés sur 16 trouvés, 0 fausse alerte sur 8
   cas justes, 0,0023 $ par vérification ; cas petits, effet plafond possible.)*
@@ -287,9 +316,24 @@ déjà ; questions : +10 points sur 10 demandes ambiguës, sous le seuil de 15).
 *(mesuré : 59 sessions ont dépassé 300 000 jetons de contexte, 20 seulement ont été relancées avec une note ; elles font 76 % du coût total.)*
 Le coût caché est le contexte : une session qui grossit relit tout à chaque tour.
 
-- Avertir à **200 000** jetons ; **à 250 000, écrire la note de reprise, puis compacter sur place** (`/compact`) ; tout de suite à **500 000**. Workers : 200 000.
+- **La compaction sur place est la voie normale** : `autoCompactWindow` = **180 000** (posé à l’installation par `outils/compaction.mjs activer --ecrire`). Au déclenchement, le crochet
+  `PreCompact` (`hooks/compaction.mjs`) met la note de reprise à jour et dit au modèle quoi garder ; le crochet `SessionStart` (matcher `compact`) fait relire la note juste après.
+  Le modèle choisit ce qu'il garde, la session garde son identité, ses filles et sa mémoire vive : rien à relancer.
+- Claude ne peut pas taper `/compact` lui-même : le seuil automatique ou l'utilisateur le déclenche. Le hook `poids-de-session` rappelle à **150 000**, **300 000** et **500 000** jetons
+  de finir l'étape en cours et de tenir la note à jour, pour que la compaction tombe à un bon moment. Workers : 150 000.
 - **Une session neuve seulement si la tâche change**, et le dire en une ligne (« → session neuve — parce que la tâche passe de … à … ») : elle coûte un processus
   de plus pour un gain de jetons comparable au compactage *(décision L-13)*.
+- **Compacter ou relancer** *(veille vérifiée du 23/11/2026 : les deux sont bons, pas pour la même raison ; aucun seuil n'est publié, les 180 000 sont une décision maison)* :
+
+  | Situation | Geste |
+  |---|---|
+  | même tâche, contexte alourdi, processus ou filles vivants | compacter tôt, avec une consigne (« garder X, oublier Y ») |
+  | la tâche change | relancer avec une note (`/clear` si rien à transmettre) |
+  | contexte pollué : corrections ratées, mauvaise piste | relancer avec une note qui dit ce qu'on a appris — un compacteur ne garde que ~17 % des contraintes (arXiv 2608.11242) |
+  | projet sur plusieurs fenêtres | relancer depuis un état externe : git log, fichier de progression, JSON plutôt que Markdown (Anthropic, *Effective harnesses*) |
+  | fin de phase | les deux : note à jour, puis compacter |
+
+  Une compaction invalide le cache de prompt : pas de compaction de confort.
 - **Note de reprise** (≤ 150 lignes) : but et critère de fin, compteurs avec source, commande de reprise
   unique, décisions et « ne pas refaire », fichiers, traitements en cours, workers (id, modèle, effort,
   état), processus de fond, ce qui attend l'humain. Après compactage ou en session neuve, on ne relit que la note et ce qu'elle liste.
@@ -311,13 +355,22 @@ Le coût caché est le contexte : une session qui grossit relit tout à chaque t
 - Compte rendu : situer (quoi, pourquoi, où on en est), puis le détail, les décisions prises, ce qui reste ; tableaux et chemins à la fin.
 - Le verdict de la session (tests, commits, corrections) s'écrit seul à chaque fin de tour (hook `verdict`) ;
   un changement de code se termine par ses tests : si du code a changé depuis les derniers tests d'un dépôt
-  qui en a, le hook refuse une fois la fin de tour et donne la commande. `/retour` ne sert plus qu'à ajouter le prompt et la leçon, quand la session a appris quelque chose qui contredit ce skill.
+  qui en a, le hook refuse une fois la fin de tour et donne la commande.
+- **Le retour s'écrit sans qu'on le demande.** Quand une session vérifiée apprend quelque chose — plusieurs modèles, une délégation
+  hors Claude, une session fille, un échec, une correction, un couple tâche · modèle vu moins de 3 fois, ou une banque de moins de
+  50 retours sur 30 jours — le hook `verdict` refuse une fois la fin de tour et demande `/retour` (Haiku suffit, pas d'agent). On
+  l'écrit sans poser de question, avec `"skill"` si une skill de métier a servi. `ORCH_RETOUR_AUTO=0` coupe. *(à mesurer : retours par semaine)*
+- **Une tâche qui revient se propose en skill.** `node ${CLAUDE_PLUGIN_ROOT}/outils/candidats-skills.mjs` liste les tâches réussies
+  3 fois en 30 jours aux prompts proches, sans skill de métier, et les skills de `skills/metiers/` à affiner ou à descendre d'un cran.
+  Le compte rendu cite la candidate de la tâche du jour en une ligne ; la création se fait par la passe d'affinage (tous les 2 jours), pas en séance.
 
 ## Hors du skill, piste : le modèle local (LFM3)
 
 Rien n'est câblé. LFM3-1.7B (Mac, Ollama, 296 cas inventés, 11 682 essais, 16/11/2026) est **fiable sur les questions fermées** (oui/non, langue, ton, doublon, choix d'outil) :
 **96 % de réussite au seuil de probabilité 0,99, sur 47 % des cas** (validation croisée) ; il est **inutilisable pour trier les e-mails** (il suit les ordres cachés ; aucun signal ne marche).
 Pas d'économie face à Haiku (≈ 0,001 $ le tri) : l'intérêt est la vitesse (0,2 s), le hors-ligne, la discrétion. Piste pour l'assistant du Mac mini, pas règle du skill.
+**Depuis la 3.8.0, le stagiaire local** rejoue en ombre, sur le Mac mini seulement, les tâches simples déjà rendues par un agent (court, json, tableau, rédaction) : le hook `hooks/stagiaire.mjs` les garde, `outils/stagiaire.mjs` les envoie à 20 h, le mini les rejoue la nuit, et le banc du mardi et du vendredi à 0 h passe les défis de `bancs/stagiaire/defis/` (iMessage de départ, PDF de fin lu par Claude). Il ne décide rien : un type « proposé fiable » se propose à l'utilisateur, jamais promu seul. Le stagiaire reste hors du paquet public.
+**Depuis la 3.9.0, la veille web courante peut tourner en local** : `outils/veille-locale.sh "<question>"` lance qwen3.5:4b sur le Mac mini (SearXNG, trafilatura, citations par numéros de phrases vérifiés) et rend le rapport. Bon pour une question de méthode ou de documentation, pas pour un chiffre qui engage : **Opus relit toujours** (sur 3 questions, les deux modèles ont manqué la réponse principale une fois). Mac mini injoignable ou rapport vide → la veille web de la table. `--second` donne l'avis de qwen3.5:9b si la porte mémoire l'accepte.
 Note d'architecture complète (chemin dans le coffre) : `references/modele-local-lfm3.md`.
 
 ## Prompt de démarrage type
@@ -325,7 +378,7 @@ Note d'architecture complète (chemin dans le coffre) : `references/modele-local
 > Tu es l'orchestratrice de ce chantier (skill `orchestrateur`). But : <…>. Critère de fin : <…>.
 > Fais le diagnostic de départ, annonce le plan en étapes puis le tableau des sessions
 > (modèle · effort · pourquoi · critère de fin), lance-les **toutes dans ce tour** (sous-agents d'abord ; une session séparée seulement avec sa ligne de raison, § 0), démarre le suivi (`suivi.mjs demarrer`, bureau, `Monitor` sur `guetter`) sans minuterie de point,
-> boucle construire, vérifier, reprendre, escalader sur chaque rendu (§ 3 b), écris la note de reprise à 250 000 jetons puis compacte sur place,
+> boucle construire, vérifier, reprendre, escalader sur chaque rendu (§ 3 b), tiens la note de reprise à jour et laisse la compaction se faire sur place à 180 000 jetons,
 > arrête tout ce que tu as lancé à la fin. Va jusqu'au résultat exploitable.
 
 ## Références

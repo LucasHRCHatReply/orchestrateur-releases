@@ -50,6 +50,8 @@ et son critère de fin ne déclenche rien : briefer tout de suite.
 
 ### 2.1 Ce qui pèse, dans l'ordre
 
+0. **Une phrase de rôle, en tête.** « Tu es relecteur de diff pour un dépôt Node en production » : elle fixe le point de vue et le niveau
+   d'exigence en une ligne ; le reste du brief dit la tâche. Pas de rôle flatteur (« expert mondial ») : il n'ajoute rien.
 1. **Critère de fin vérifiable, avec sa commande.** « Fini quand `<commande>` affiche `<attendu>` » ; ce qui ne compte pas
    (vérification de syntaxe seule, commande qui n'a pas démarré) ; que faire sinon (dire quelle vérification n'a pas pu tourner et pourquoi) [2, 3].
    Sans cela, un agent déclare la victoire trop tôt [9] et, à `low`, saute la vérification [2, 3].
@@ -107,10 +109,25 @@ Un seul document hors sujet dans le contexte suffit à faire perdre en exactitud
 
 Ces écarts sont **documentés sur ces modèles** ; les rechecker au banc avant d'en faire une règle pour une autre famille [1].
 
+**Selon le type de tâche : ce qu'on serre, ce qu'on laisse.** Le modèle dit la forme du brief ; le type de tâche dit sa liberté.
+
+| Type de tâche (lignes de la table V3) | On serre | On laisse | Piège |
+|---|---|---|---|
+| Code spécifié, écriture en masse, données | critère par commande, schéma exact, fichiers permis, un exemple de sortie | le chemin pour y arriver | un exemple trop riche est recopié tel quel |
+| Code de dépôt difficile, agents et terminal | but, frontières, critère de fin | le plan, l'ordre des étapes, les outils | dicter les étapes bride le modèle fort |
+| Revue de diff, vérification | la grille (ce qui compte comme défaut), le format verdict + cause | l'ordre de lecture | sans grille, des remarques de goût passent pour des défauts |
+| Analyse, raisonnement, finance | les données d'entrée, ce qui doit être chiffré, la source de chaque chiffre | la méthode | une méthode imposée cache la meilleure |
+| Veille web | les questions, une URL par affirmation, la date | les requêtes, les sources | un chiffre sans sa page |
+| Rédaction sous contraintes | les contraintes comptables (longueur, mots interdits) et leur script de comptage | le style dans ces limites | contrainte dite sans raison, mal généralisée |
+| Rédaction qui doit plaire, idées | le but, le public, les garde-fous, le nombre de propositions | tout le reste : **pas d'exemple** | un exemple enferme les idées dans son pli (§ 2.3) |
+
+*(à mesurer : reprises de cause `contrainte` ou `format` par type de tâche, avant et après ce tableau.)*
+
 ### 2.5 Le rapport demandé
 
 - **Cinq champs fixes** : fait ; preuve (commande + dernière ligne de sa sortie, collée telle quelle, pas paraphrasée) ;
   non fait ou non vérifié (avec la raison) ; décisions prises ; ce qui attend l'humain. Ouvrir par le résultat [4].
+- Donner **le droit de ne pas savoir** : « ce que les sources fournies ne couvrent pas s'écrit `n/a — non couvert`, jamais deviné ; un chiffre sort d'une commande ». Sans cette sortie, un modèle comble le trou par une affirmation assurée (Anthropic, *Reduce hallucinations*). *(3.11.0)*
 - Demander **ce qui contredit le brief** : une fille doit signaler une lacune, pas la combler en silence, et remonter ses trouvailles [20].
 - Au-delà de cinq lignes, la fille écrit un fichier et rend son chemin : le résumé qui revient pèse 1 000 à 2 000 jetons au plus [5].
 
@@ -135,7 +152,7 @@ Ces écarts sont **documentés sur ces modèles** ; les rechecker au banc avant 
 - [ ] Le contexte n'a que ce que la fille ne peut pas lire ; le reste est un chemin ?
 - [ ] Aucune contradiction, aucune majuscule d'alerte, aucun « vérifie deux fois » pour Opus ?
 - [ ] Bloc d'arrêt (« ne demande que si bloquée ») et, pour du code, bloc de vérification réelle, à Haiku et Sonnet ?
-- [ ] Format du rapport : 5 champs, preuve collée, « non vérifié » obligatoire ?
+- [ ] Format du rapport : 5 champs, preuve collée, « non vérifié » obligatoire, et la ligne `n/a — non couvert` ?
 - [ ] Règles de l'utilisateur utiles répétées ? Processus de fond à arrêter listés ? Modèle · effort annoncés (§ 3 de `SKILL.md`) ?
 
 ## 4. Exemple de bout en bout

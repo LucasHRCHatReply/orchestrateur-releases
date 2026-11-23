@@ -125,7 +125,8 @@ export function creerAnalyse(depuis = DEPUIS, reprise = null) {
     humains: 0, corrections: 0, demandeOrch: 0, annonces: 0, textesAssistant: 0,
     sessions: [], sessionsRefusees: 0, handoffs: 0, agents: [], workflows: 0, toolsearchSession: 0,
     sendMessage: 0, minuteries: 0, notifs: 0, notesReprise: 0, skills: new Set(), erreursOutils: {}, outils: {},
-    tests: 'aucun', seriesTests: 0, commits: 0, modifsCode: 0, codeSansTest: 0, dernierCode: '', cwd: '' };
+    tests: 'aucun', seriesTests: 0, commits: 0, modifsCode: 0, codeSansTest: 0, dernierCode: '', cwd: '',
+    retours: 0, delegations: 0 };
   const extraits = [];
   const compter = compteur(); const appel = new Map(); const surveille = new Map();
   let projet = '';
@@ -175,6 +176,8 @@ export function creerAnalyse(depuis = DEPUIS, reprise = null) {
       else if (c.name === 'Bash' && /notifier\.sh|ntfy/.test(i.command || '')) s.notifs++;
       else if ((c.name === 'Write' || c.name === 'Edit') && /reprise|passation/i.test(i.file_path || '')) s.notesReprise++;
       else if (c.name === 'Skill' && i.skill) s.skills.add(i.skill);
+      if ((c.name === 'Skill' && i.skill === 'retour') || /retours\.jsonl$/.test(i.file_path || '') || (c.name === 'Bash' && />>\s*\S*retours\.jsonl/.test(i.command || ''))) s.retours++;   // un retour écrit (hook verdict)
+      if (c.name === 'Bash' && /deleguer\.mjs/.test(i.command || '')) s.delegations++;   // un modèle hors Claude
       if (/^(?:Edit|Write|MultiEdit)$/.test(c.name) && !ev.isSidechain && CODE.test(i.file_path || '') && !/\.test\.|\/tests?\//.test(i.file_path)) { s.modifsCode++; s.codeSansTest++; s.dernierCode = i.file_path; }
       if (c.name === 'Bash' && !ev.isSidechain) { const cmd = String(i.command || '');
         const quoi = [estTest(cmd) && 'test', estCommit(cmd) && 'commit'].filter(Boolean);

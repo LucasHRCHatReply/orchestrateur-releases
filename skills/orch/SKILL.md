@@ -76,7 +76,7 @@ Déroulé habituel, **un seul oui pour toute la liste** :
    - pour chaque id de la ligne `Prêtes à archiver : …`, `mcp__ccd_session_mgmt__archive_session` avec
      `reason` « rangée par /orch ranger, note de reprise écrite » — un refus (session ouverte à l'écran, épinglée) se note et on continue ;
    - Bash : `${CLAUDE_PLUGIN_ROOT}/skills/orch/lancer.sh ranger bilan`, et recopier ce bilan tel quel.
-5. Finir par une ligne : les sessions 🔁 à relancer repartent d'une session neuve avec leur note pour seul brief.
+5. Finir par une ligne : les sessions 🔁 lourdes se compactent sur place (seuil automatique à 180 000 ou `/compact`), leur note relue après ; une session neuve seulement si la tâche change.
 
 États : 🟢 travaille = processus vivant et activité de moins de 3 min ; 🔴 interrompue = pas de processus et dernier tour
 non terminé ; 💤 dort = pas de statut fini et inactive depuis plus de 30 min. Interrompues et dormeuses s'archivent, avec leur note.

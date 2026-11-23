@@ -402,7 +402,8 @@ function note(x, ecrire = true, relance = false) {
     ...(relance && !COMPACTION ? [`Prompt de la session neuve : « Lis ${fichier.replace(MAISON, '~')} et reprends là où elle s'arrête : vérifie d'abord l'état des fichiers et des commits, puis enchaîne sur « Ce qui reste à faire ». »`, ''] : []),
     relance ? `1. Dans l’app : la session « ${x.titre} » reste ouverte avec tout son contexte (\`${x.id}\`).` : `1. Dans l’app : la session « ${x.titre} » est dans les archives ; la désarchiver (\`unarchive_session\` \`${x.id}\`) la rouvre avec tout son contexte.`,
     `2. En terminal : \`cd ${(x.cwd || '').replace(MAISON, '~')} && claude --resume ${x.cli}\`${branche ? ` (branche \`${branche}\`)` : ''}.`,
-    '3. Plus léger : une session neuve avec pour seul brief cette note — le contexte repart de zéro au lieu de ' + k(x.ctx) + ' jetons.', ''];
+    '3. D’abord : compacter sur place (`/compact`, ou le seuil automatique à 180 000) — la note se met à jour et se relit après.',
+    '4. Dernier recours, si la tâche change : une session neuve avec pour seul brief cette note — le contexte repart de zéro au lieu de ' + k(x.ctx) + ' jetons.', ''];
   fs.writeFileSync(fichier, t.join('\n'));
   return fichier;
 }
